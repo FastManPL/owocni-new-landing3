@@ -41,8 +41,7 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
     }
   }, []);
 
-  // Animacja startowa: jak w oryginale — gradient ukryty do momentu .animate, double rAF żeby
-  // pierwsza widoczna klatka miała już keyframe 0% (rozchodzenie ze środka, nie flash na obrzeżach)
+  // Animacja startowa — 1:1 oryginał (startGradient): ukrycie, willChange, reflow, double rAF, potem .animate
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -52,6 +51,9 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
       gradient.style.visibility = "hidden";
       gradient.style.opacity = "0";
       gradient.style.transition = "none";
+      gradient.style.willChange =
+        "mask-image, background-image, --hero-radial-center, --hero-conic-rotate";
+      void gradient.offsetWidth;
     }
     const t = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
