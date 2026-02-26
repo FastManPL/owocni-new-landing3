@@ -1,7 +1,7 @@
 /* B9: isolation na root sekcji */
 #revenue-reach-video-section {
   isolation: isolate;
-  --rrv-bg: #e7e6e8;
+  --rrv-bg: #f7f6f4;
   --rrv-card-bg: #fff;
   --rrv-inner-bg: #d9d2cc;
   --rrv-text: #000;
