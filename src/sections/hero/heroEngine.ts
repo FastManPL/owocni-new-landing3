@@ -606,6 +606,189 @@ function runTrail(container: HTMLElement, heroInitT0: number): () => void {
   };
 }
 
+/** Royal Pendulum: animacja kulki w .pendulum-container (canvas 16×16 — precesja + wahadło). */
+function runRoyalPendulum(container: HTMLElement): () => void {
+  const $id = (id: string) => container.querySelector<HTMLCanvasElement>("#" + id);
+  const rpCanvas = $id("hero-royalCanvas");
+  if (!rpCanvas) return () => {};
+
+  const ctx = rpCanvas.getContext("2d", { alpha: false });
+  if (!ctx) return () => {};
+
+  const RP_CONFIG = {
+    BPM: 25.5,
+    anchor: { x: 11.6, y: -12.0 },
+    armLength: 20.8,
+    swingAmp: 0.65,
+    precessionSpeed: 0.05,
+    coreSize: 14.52,
+  };
+  const RP_VIRTUAL_START = 61.0;
+  const RP_VIRTUAL_END = 94.0;
+  const RP_TARGET_DURATION = 6.0;
+  const RP_ORBIT_SPEED = (RP_VIRTUAL_END - RP_VIRTUAL_START) / RP_TARGET_DURATION;
+  const RP_BPM_SCALE = (Math.PI * 2) / (60 / RP_CONFIG.BPM);
+  const RP_FRAME_TIME = 1000 / 30;
+
+  let rpLastRenderTime = 0;
+  let rpLoopDir = 1;
+  let rpSwingAcc = 0;
+  let rpOrbitAcc = RP_VIRTUAL_START;
+  let rpLastFrame = 0;
+  let rpActive = true;
+  let rpRafId: number | null = null;
+
+  const rpBgSprite = document.createElement("canvas");
+  rpBgSprite.width = 16;
+  rpBgSprite.height = 16;
+  const rpBgCtx = rpBgSprite.getContext("2d");
+  if (rpBgCtx) {
+    const rpBg = rpBgCtx.createRadialGradient(11.5, 6.1, 0, 11.5, 6.1, 13.3);
+    rpBg.addColorStop(0, "rgba(130, 117, 104, 1)");
+    rpBg.addColorStop(1, "rgba(0, 0, 0, 1)");
+    rpBgCtx.fillStyle = rpBg;
+    rpBgCtx.fillRect(0, 0, 16, 16);
+  }
+
+  function rpRender(timestamp: number) {
+    if (!rpActive || !ctx) {
+      rpRafId = null;
+      return;
+    }
+    if (rpLastFrame === 0) rpLastFrame = timestamp;
+    let rpDt = (timestamp - rpLastFrame) / 1000;
+    rpLastFrame = timestamp;
+    if (rpDt > 0.1) rpDt = 0.1;
+    rpSwingAcc += rpDt;
+    rpOrbitAcc += rpDt * RP_ORBIT_SPEED * rpLoopDir;
+    if (rpOrbitAcc >= RP_VIRTUAL_END) {
+      rpOrbitAcc = RP_VIRTUAL_END;
+      rpLoopDir = -1;
+    } else if (rpOrbitAcc <= RP_VIRTUAL_START) {
+      rpOrbitAcc = RP_VIRTUAL_START;
+      rpLoopDir = 1;
+    }
+
+    if (timestamp - rpLastRenderTime >= RP_FRAME_TIME) {
+      rpLastRenderTime = timestamp;
+      const swT = rpSwingAcc * RP_BPM_SCALE;
+      const rawSw = Math.sin(swT) + 0.02 * Math.cos(swT * 0.5);
+      const swAngle = (rawSw + 0.05 * Math.sin(3 * swT)) * RP_CONFIG.swingAmp;
+      const slT = rpOrbitAcc * 0.5 * RP_CONFIG.precessionSpeed;
+      const orbAngle = slT + Math.sin(slT * 0.5) * 0.5;
+      const sinSw = Math.sin(swAngle);
+      const lX = RP_CONFIG.armLength * sinSw * Math.cos(orbAngle);
+      const lZ = RP_CONFIG.armLength * sinSw * Math.sin(orbAngle);
+      const lY = RP_CONFIG.armLength * Math.cos(swAngle);
+      const bX = RP_CONFIG.anchor.x + lX;
+      const bY = RP_CONFIG.anchor.y + lY;
+      const sc = 1.0 + lZ * 0.025;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.drawImage(rpBgSprite, 0, 0);
+      const bOff = -2.4;
+      const yR = RP_CONFIG.coreSize * sc * 0.45;
+      const tR = RP_CONFIG.coreSize * sc;
+      const g = ctx.createRadialGradient(
+        bX + 2.4 + bOff,
+        bY - 2.4,
+        0,
+        bX + bOff,
+        bY,
+        tR
+      );
+      g.addColorStop(0, "rgba(255, 208, 43, 1)");
+      g.addColorStop(yR / tR, "rgba(240, 176, 0, 1)");
+      g.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(bX + bOff, bY, tR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    rpRafId = requestAnimationFrame(rpRender);
+  }
+  rpRafId = requestAnimationFrame(rpRender);
+
+  const rpIO = new IntersectionObserver(
+    (entries) => {
+      const vis = entries[0]?.isIntersecting ?? false;
+      if (vis && !rpActive) {
+        rpActive = true;
+        rpLastFrame = 0;
+        rpRafId = requestAnimationFrame(rpRender);
+      } else if (!vis && rpActive) {
+        rpActive = false;
+        if (rpRafId !== null) {
+          cancelAnimationFrame(rpRafId);
+          rpRafId = null;
+        }
+      }
+    },
+    { rootMargin: "50px" }
+  );
+  rpIO.observe(rpCanvas);
+
+  return () => {
+    rpActive = false;
+    if (rpRafId !== null) {
+      cancelAnimationFrame(rpRafId);
+      rpRafId = null;
+    }
+    rpIO.disconnect();
+  };
+}
+
+/** Mobile: ustawianie --bg-cutoff na sekcji (dolna krawędź hero-content + połowa action-area). */
+function runHeroBgCutoff(container: HTMLElement): () => void {
+  const $ = (sel: string) => container.querySelector<HTMLElement>(sel);
+  const banner = container;
+  const heroContent = $(".hero-content");
+  if (!banner || !heroContent) return () => {};
+
+  let cutoffTimeout: ReturnType<typeof setTimeout> | null = null;
+  let lastCutoffW = typeof window !== "undefined" ? window.innerWidth : 0;
+
+  function updateCutoff() {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth > 600) {
+      banner.style.removeProperty("--bg-cutoff");
+      return;
+    }
+    if (!heroContent) return;
+    const bannerRect = banner.getBoundingClientRect();
+    const heroRect = heroContent.getBoundingClientRect();
+    const actionArea = $(".action-area");
+    const actionRect = actionArea ? actionArea.getBoundingClientRect() : heroRect;
+    const cutoff = heroRect.bottom - bannerRect.top + actionRect.height / 2;
+    banner.style.setProperty("--bg-cutoff", `${cutoff}px`);
+  }
+
+  if (typeof document !== "undefined" && document.readyState === "complete") {
+    updateCutoff();
+  } else if (typeof window !== "undefined") {
+    window.addEventListener("load", updateCutoff);
+  }
+
+  const onResize = () => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth === lastCutoffW) return;
+    lastCutoffW = window.innerWidth;
+    if (cutoffTimeout) clearTimeout(cutoffTimeout);
+    cutoffTimeout = setTimeout(updateCutoff, 250);
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", onResize);
+  }
+
+  return () => {
+    if (cutoffTimeout) clearTimeout(cutoffTimeout);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("load", updateCutoff);
+      window.removeEventListener("resize", onResize);
+    }
+    banner.style.removeProperty("--bg-cutoff");
+  };
+}
+
 /** Season pill: tekst zależny od daty (jak w referencji). */
 function seasonPillPL(): string {
   const now = new Date();
@@ -922,18 +1105,22 @@ function runBadge20Lat(container: HTMLElement): () => void {
   };
 }
 
-/** Uruchamia marquee + trail + badge 20 lat + CTA tooltip/season pill. Zwraca funkcję cleanup. */
+/** Uruchamia marquee + trail + badge 20 lat + CTA tooltip/season pill + Royal Pendulum + --bg-cutoff. Zwraca funkcję cleanup. */
 export function runHeroEngine(container: HTMLElement): () => void {
   const heroInitT0 = performance.now();
   const cleanupMarquee = runMarquee(container);
   const cleanupTrail = runTrail(container, heroInitT0);
   const cleanupBadge20 = runBadge20Lat(container);
   const cleanupCta = runCtaTooltipAndSeasonPill(container);
+  const cleanupRoyalPendulum = runRoyalPendulum(container);
+  const cleanupBgCutoff = runHeroBgCutoff(container);
 
   return () => {
     cleanupMarquee();
     cleanupTrail();
     cleanupBadge20();
     cleanupCta();
+    cleanupRoyalPendulum();
+    cleanupBgCutoff();
   };
 }
