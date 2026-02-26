@@ -1,0 +1,122 @@
+﻿# CONSTITUTION v2.5 — CURSOR RULES
+# Stack: Next.js 16 (App Router) · React 19 · Tailwind · Turbopack · GSAP
+# Target: High-performance LP. INP ≤200ms · CLS <0.1 · LCP <2.5s
+
+
+## 0. PRIME DIRECTIVES
+1. Visual Fidelity: NEVER alter animation physics/timings/snap/easing (J3). Timeline Contract = LOCKED. Conflict with optimization? Wrap/isolate — never alter execution.
+2. Architecture: `layout.tsx` MUST be Server Component. Sekcja = zamknięty komponent. Zero importów krzyżowych. Shared Core Layer only: scrollRuntime, moduleLoader, consent, design tokens.
+3. Islands: Heavy animations in small `"use client"` components. No global `"use client"` on page/layout level.
+4. No sweeping changes without approval. No modifications affecting visuals without acceptance.
+
+
+## 1. PROJECT CONFIG (next.config.ts)
+- `cacheComponents: true` (NOT experimental PPR). Opt-in: Navbar/Footer MUST have `"use cache"`. DCI sections MUST NOT.
+- `reactCompiler: { compilationMode: 'annotation' }`. Pure UI → `"use memo"`. GSAP sections → no annotation.
+- `images: { formats: ['image/avif','image/webp'], deviceSizes: [custom], qualities: [60,75,85] }`. No 3840. No quality:100.
+- Turbopack default. Fallback: `--webpack`. Bundle Analyzer on PR gate.
+- Fonts: `next/font/google` + `adjustFontFallback: true`. Lexend `display:'swap'`. Fraunces `display:'optional'`. Never CDN.
+
+
+## 2. FILE STRUCTURE
+```
+src/sections/[name]/         ← NOT components/sections/
+  [Name]Section.tsx          ← "use client" (or SSR+client sidecar)
+  [name].config.ts           ← Timeline Contract — LOCKED, DO NOT MODIFY
+  [name].manifest.ts         ← type A/B, assets HOT/WARM/COLD, warmup, geometryMutable
+  [name]-section.css
+src/lib/scrollRuntime.ts     ← Singleton. Lenis + GSAP ticker + requestRefresh
+src/lib/moduleLoader.ts      ← Heavy libs (Three/Lottie) — cache + warmup policy
+src/lib/autoTier.ts          ← S/M/L headline tier
+src/config/variants.ts       ← server-only, DCI allowlist
+src/hooks/useGeometryRefresh.ts
+```
+
+
+## 3. SCROLL RUNTIME (C1-C8)
+- ONE owner: `scrollRuntime` singleton. NEVER `new Lenis()`, NEVER `ScrollTrigger.refresh()` directly.
+- Lenis `autoRaf:false`. GSAP ticker = master clock, Lenis = slave (`prioritize:true`).
+- Ban: `ScrollTrigger.normalizeScroll()`, `ScrollSmoother`.
+- `ScrollTrigger.config({ ignoreMobileResize: true })` + manual refresh on `orientationchange`.
+- Refresh via broker: `scrollRuntime.requestRefresh(reason)` — debounce 120ms + double rAF.
+- Ban `requestRefresh` in: rAF loops, ticker callbacks, onUpdate, mid-animation. Only AFTER geometry change.
+- `getScroll()` = interpolated (layout). `getRawScroll()` = raw (velocity). Typ B MUST separate.
+
+
+## 4. GSAP & ANIMATIONS
+- GSAP = DEFAULT (initial bundle ~30KB, auto-deduplicated). Not optional.
+- Animate `transform`/`opacity` only. Avoid layout-triggering props (width/height/top/left) unless design mandates.
+- `clip-path`, `filter`, Canvas allowed — MUST test on real mobile device.
+- ALL animation logic inside `useGSAP(() => {...}, { scope: container })`. NOT useEffect.
+- `useGSAP` auto-cleanup. Return function for manual cleanup (ticker, listeners).
+- Timeline → ScrollTrigger (never reverse). `invalidateOnRefresh:true` on dynamic `end`.
+- >10 elements → scope + class selectors. NOT useRef pool.
+- SplitText: ONLY inside useGSAP (post-hydration). Ban `suppressHydrationWarning`. Start `visibility:hidden` → split → animate reveal.
+- Mutated DOM nodes must live in stable subtree (no useState parent that re-renders).
+- ST callbacks (`onEnter/onLeave/onToggle`) MUST be idempotent with guard. Exception: `scrub`, `once:true`.
+- GPU cleanup: `gsap.set(targets, { willChange:"auto" })` on `onComplete`. NOT `clearProps:"all"`.
+- Hero pre-rasterization: `will-change: transform, opacity` in STATIC CSS for hero elements. ONLY hero. Cleanup after.
+- Heavy init (>50ms): `await scheduler.yield()` + fallback `setTimeout(0)`.
+- ScrollTrigger Budget: soft limit ~40. Lists → batch (1 ST with scrub, not N per item).
+
+
+## 5. SECTIONS
+- Each section: `isolation: isolate` on root element. `#[name]-section` namespace. Ban global CSS.
+- Ghost States: EVERY interactive element MUST have `:active` CSS state. `active:scale-[0.97] transition-transform duration-75`.
+- Passive listeners: `addEventListener('wheel'/'touchmove'/'touchstart')` MUST have `{passive:true}`. Ban non-passive.
+- Stable geometry: reserve space (aspect-ratio/dimensions) before assets load.
+- `content-visibility:auto` ONLY on sections WITHOUT ScrollTrigger (FAQ/CTA/Footer).
+- Manifest declares: type A/B, assets HOT/WARM/COLD, `scrollTriggersCount`, `geometryMutable`, `warmup`.
+- geometryMutable sections: `data-geometry` marker on transitioning element. Hook `useGeometryRefresh` if `geometryRefresh:"none"`.
+- `transition-duration:0s` BANNED on data-geometry elements. Minimum `0.01s`.
+
+
+## 6. SECTION TYPES
+- **Typ A** (standard): ScrollTrigger, no own ticker. Needs only `kill()`.
+- **Typ B** (physics/velocity): Has ticker/canvas/rAF. Needs `pause()/resume()/kill()` + `isFirst=true` skip-first-frame + `visibilitychange` reset.
+- **Makro-Sekcja**: One component, one useGSAP, one scope. Ban wrapper-with-children pattern. Ban forwardRef chains.
+- Triage A/B at section creation START, not retrofitted.
+
+
+## 7. ASSET LOADING
+- **HOT**: hero only. `priority={true}` + `fetchPriority="high"`. Instant.
+- **WARM**: prefetch in background. IO `rootMargin:"1500px"` or `<link rel="prefetch">`.
+- **COLD**: on-demand. `fetchPriority="low"`. May not load on Save-Data/Tier 0.
+- CPU gating: IO `.pause()` video/canvas/Lottie when offscreen. Transfer ≠ CPU.
+- Three.js (~600KB): `next/dynamic({ ssr:false })` + moduleLoader warmup `idle`/`near-viewport`. Skeleton placeholder mandatory for pinned sections.
+- Lottie: `@lottiefiles/dotlottie-react` with `worker={true}` + canvas renderer. No custom worker pipeline. Pause offscreen. Via moduleLoader with warmup `immediate` or `idle`.
+- Video non-hero: `preload="none"`. Swap to `preload="auto"` via IO near viewport. MUST have poster image (prevent layout collapse).
+- `dns-prefetch` for sGTM (NOT preconnect). `preconnect` ONLY for image CDN if different origin.
+
+
+ 
+
+
+## 8. DEVICE TIER (G11)
+- `getDeviceTier()`: saveData, hardwareConcurrency<4, deviceMemory<4GB, effectiveType 2g/slow-2g, prefers-reduced-motion.
+- **Tier 0**: COLD off, Lenis OFF, hero video=poster, simplified animations, Three.js=fallback.
+- **Tier 1**: Full functionality.
+- **Tier 2**: Full "wow" effects.
+
+
+## 9. CODING STANDARDS
+- TypeScript: Strict mode.
+- `params` & `searchParams` are Promises in Server Components → always `await`.
+- `ref` as prop (React 19, no forwardRef).
+- All images via `next/image` with explicit `sizes`. Ban raw `<img>`.
+- No client-side data fetching. If absolutely needed, isolate in small `"use client"` component.
+- `loading.tsx` for route-level skeleton only. No global spinners.
+- `scrollbar-gutter: stable` on `html`.
+- `"use cache"` on Navbar/Footer mandatory (otherwise shell not cached).
+
+
+## 10. BANS
+- No `window.__scroll` in production (debug alias only).
+- No `ScrollTrigger.normalizeScroll()` / `ScrollSmoother` with Lenis.
+- No `clearProps:"all"` (use `willChange:"auto"`).
+- No `suppressHydrationWarning` as fix for DOM mutations.
+- No `dangerouslySetInnerHTML` from untrusted sources.
+- No `transition-duration:0s` on geometry-signal elements.
+- No `addEventListener` wheel/touch without `{passive:true}`.
+- No global `*{}`, `html{}`, `body{}`, `:root{}` in section CSS.
+- No modifying `*.config.ts` (Timeline Contract) without author approval.

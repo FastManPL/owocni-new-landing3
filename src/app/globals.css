@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* C7: Lenis CSS */
+@import "lenis/dist/lenis.css";
+
+/* Design tokens — fallback stacki (A4) */
+:root {
+  --font-sans: var(--font-lexend), Arial, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-mono: ui-monospace, monospace;
+}
+
+/* scrollbar-gutter: stable — zapobiega skakaniu layoutu przy scrollbar */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Test shell reset (nie część sekcji) */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
