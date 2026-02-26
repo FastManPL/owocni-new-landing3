@@ -229,6 +229,11 @@
    1. Domyślnie: display: none (bardzo stare przeglądarki)
    2. @supports color-mix: DOWNFALL (burst-ripple)
    3. @supports oklch: Premium (OKLCH + Conic)
+
+   Kolejność warstw (z-index) — 1:1 z referencją:
+   - gradient-perf-wrapper, burst-container: 0 (tło)
+   - #hero-section::after (fade na dole): 1
+   - .content-layer: 10 (treść ponad fade i tłem)
    ========================================================================== */
 
 /* WARSTWA 0: HARD OFF (default - bardzo stare przeglądarki) */
@@ -256,19 +261,19 @@
     pointer-events: none;
 }
 
-/* 1:1 oryginał — pozycjonowanie: wyśrodkowane, żeby "50% 50%" maski = środek sekcji (rozchodzenie ze środka) */
+/* 1:1 oryginał — top/left 0, origin top left (jak w hero-phase3-standardize) */
 #hero-section .startup-gradient {
     display: none;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     position: absolute;
-    top: 25%;
-    left: 25%;
+    top: 0;
+    left: 0;
     width: 50%;
     height: 50%;
     transform: scale(2);
-    transform-origin: center center;
+    transform-origin: top left;
 }
 
 /* Noise dither — rozbija gradient banding */
@@ -616,10 +621,10 @@
 /* WHITE BANNER (visual card at bottom) */
 /* white-banner USUNIĘTY — sekcja fullscreen, biały kontener przeniesiony do osobnej sekcji */
 
-/* CONTENT LAYER */
+/* CONTENT LAYER — z-index: 10 = ponad ::after (1) i tłem (0), jak w referencji */
 #hero-section .content-layer {
     position: relative;
-    /* z-index: removed — no stacking context, allows z-index layering between trail/laury/blob/text */
+    z-index: 10;
     width: 100%;
     min-height: 100vh;
     min-height: 100svh;

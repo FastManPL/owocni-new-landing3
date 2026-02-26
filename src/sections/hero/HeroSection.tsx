@@ -41,32 +41,35 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
     }
   }, []);
 
-  // Animacja startowa — 1:1 oryginał (startGradient): ukrycie, willChange, reflow, double rAF, potem .animate
+  // Animacja startowa — 1:1 oryginał (playEntrySequence → 50ms → startGradient): ukrycie, willChange, reflow, double rAF, .animate
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const gradient = el.querySelector<HTMLElement>(".startup-gradient");
     const burst = el.querySelector(".burst-container");
-    if (gradient) {
-      gradient.style.visibility = "hidden";
-      gradient.style.opacity = "0";
-      gradient.style.transition = "none";
-      gradient.style.willChange =
-        "mask-image, background-image, --hero-radial-center, --hero-conic-rotate";
-      void gradient.offsetWidth;
-    }
-    const t = requestAnimationFrame(() => {
+    const start = () => {
+      if (gradient) {
+        gradient.style.visibility = "hidden";
+        gradient.style.opacity = "0";
+        gradient.style.transition = "none";
+        gradient.style.willChange =
+          "mask-image, background-image, --hero-radial-center, --hero-conic-rotate";
+        void gradient.offsetWidth;
+      }
       requestAnimationFrame(() => {
-        if (gradient) {
-          gradient.style.transition = "";
-          gradient.style.visibility = "";
-          gradient.style.opacity = "";
-          gradient.classList.add("animate");
-        }
-        burst?.classList.add("animate");
+        requestAnimationFrame(() => {
+          if (gradient) {
+            gradient.style.transition = "";
+            gradient.style.visibility = "";
+            gradient.style.opacity = "";
+            gradient.classList.add("animate");
+          }
+          burst?.classList.add("animate");
+        });
       });
-    });
-    return () => cancelAnimationFrame(t);
+    };
+    const t = window.setTimeout(start, 50);
+    return () => window.clearTimeout(t);
   }, []);
 
   // Silnik: karuzela logotypów (marquee) + trail (obrazki za myszką) — Typ B, cleanup w return
