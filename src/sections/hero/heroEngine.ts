@@ -606,14 +606,334 @@ function runTrail(container: HTMLElement, heroInitT0: number): () => void {
   };
 }
 
-/** Uruchamia marquee + trail. Zwraca funkcję cleanup. */
+/** Season pill: tekst zależny od daty (jak w referencji). */
+function seasonPillPL(): string {
+  const now = new Date();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const hard = d >= 15;
+  if (m === 0 || m === 1) return hard ? "Ostatnie terminy na start roku" : "Zacznij rok z nową stroną";
+  if (m === 2 || m === 3) return hard ? "Ostatnie terminy na majówkę" : "Strona gotowa na majówkę";
+  if (m === 4 || m === 5) return hard ? "Ostatnie terminy przed urlopami" : "Start przed urlopami";
+  if (m === 6) return "Strona gotowa na wrzesień";
+  if (m === 7) return hard ? "Ostatnie terminy na wrzesień" : "Strona gotowa na wrzesień";
+  if (m === 8 || m === 9) return hard ? "Ostatnie terminy na jesień" : "Strona gotowa na jesień";
+  if (m === 10) return hard ? "Ostatnie terminy przed świętami" : "Strona gotowa przed świętami";
+  return hard ? "Ostatnie terminy w tym roku" : "Domknij projekt w tym roku";
+}
+
+/** CTA: tooltip (najechanie na pendulum / season pill) + season pill tekst od daty. */
+function runCtaTooltipAndSeasonPill(container: HTMLElement): () => void {
+  const $ = (sel: string) => container.querySelector<HTMLElement>(sel);
+  const $id = (id: string) => container.querySelector<HTMLElement>("#" + id);
+  const cleanups: (() => void)[] = [];
+
+  const seasonPill = $id("hero-season-pill");
+  if (seasonPill) {
+    seasonPill.textContent = seasonPillPL();
+  }
+
+  const ctaPendulum = $(".pendulum-container");
+  const ctaTooltip = $id("hero-brainTooltip");
+  const ctaCloseBtn = ctaTooltip?.querySelector<HTMLElement>(".tooltip-close");
+
+  if (ctaTooltip) {
+    let ctaHoverTimer: ReturnType<typeof setTimeout> | null = null;
+    let ctaIsDismissed = false;
+
+    const showCtaTooltip = () => {
+      if (ctaIsDismissed || window.innerWidth < 600) return;
+      ctaTooltip.classList.add("visible");
+    };
+    const hideCtaTooltip = () => {
+      ctaTooltip.classList.remove("visible");
+      ctaIsDismissed = true;
+    };
+
+    if (ctaPendulum) {
+      ctaPendulum.addEventListener("mouseenter", showCtaTooltip);
+      cleanups.push(() => ctaPendulum.removeEventListener("mouseenter", showCtaTooltip));
+    }
+    if (seasonPill) {
+      seasonPill.addEventListener("mouseenter", showCtaTooltip);
+      cleanups.push(() => seasonPill.removeEventListener("mouseenter", showCtaTooltip));
+    }
+
+    const ctaBtn = $(".cta-button");
+    const TRIGGER_AT_TAP2_CYCLE2 = 8105;
+    if (ctaBtn) {
+      const onCtaEnter = () => {
+        if (ctaIsDismissed || window.innerWidth < 600) return;
+        ctaHoverTimer = setTimeout(showCtaTooltip, TRIGGER_AT_TAP2_CYCLE2);
+      };
+      const onCtaLeave = () => {
+        if (ctaHoverTimer) {
+          clearTimeout(ctaHoverTimer);
+          ctaHoverTimer = null;
+        }
+      };
+      ctaBtn.addEventListener("mouseenter", onCtaEnter);
+      ctaBtn.addEventListener("mouseleave", onCtaLeave);
+      cleanups.push(() => {
+        if (ctaHoverTimer) clearTimeout(ctaHoverTimer);
+        ctaBtn.removeEventListener("mouseenter", onCtaEnter);
+        ctaBtn.removeEventListener("mouseleave", onCtaLeave);
+      });
+    }
+
+    const onResize = () => {
+      if (ctaHoverTimer) {
+        clearTimeout(ctaHoverTimer);
+        ctaHoverTimer = null;
+      }
+      ctaTooltip.classList.remove("visible");
+    };
+    window.addEventListener("resize", onResize);
+    cleanups.push(() => window.removeEventListener("resize", onResize));
+
+    if (ctaCloseBtn) {
+      ctaCloseBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        hideCtaTooltip();
+      });
+    }
+  }
+
+  return () => cleanups.forEach((c) => c());
+}
+
+/** Badge 20 lat: animacja wejścia (przechylony tekst PRZEWAGA/DOŚWIADCZENIA) + pendulum (delikatny ruch). */
+function runBadge20Lat(container: HTMLElement): () => void {
+  const $ = (sel: string) => container.querySelector<HTMLElement>(sel);
+  const cleanups: (() => void)[] = [];
+
+  const wrapper = $(".badge-20lat-wrapper");
+  const svg = $(".badge-20lat-wrapper .rotating-svg");
+  const badge = $(".badge-20lat");
+  const number = $(".badge-20lat .number-20");
+  const label = $(".badge-20lat-wrapper .label-lat");
+  const textTop = $(".badge-20lat-wrapper .rotating-text.text-top");
+  const textBottom = $(".badge-20lat-wrapper .rotating-text.text-bottom");
+
+  if (!wrapper || !svg || !badge || !number || !label) return () => {};
+
+  let pendulum: gsap.core.Tween | null = null;
+  let timeScaleController: gsap.core.Timeline | null = null;
+  const hoverTweens: (gsap.core.Tween | undefined)[] = [];
+  let isEntryComplete = false;
+  let isHoverActive = false;
+  let autoCloseTimer: ReturnType<typeof setTimeout> | null = null;
+  const MOBILE_HOVER_DURATION = 2500;
+  const hasHover = (typeof window !== "undefined" && window.matchMedia?.("(hover: hover)")?.matches) ?? false;
+
+  function killHoverTweens() {
+    hoverTweens.forEach((t) => t?.kill?.());
+    hoverTweens.length = 0;
+  }
+
+  function killAllAnimations() {
+    pendulum?.kill?.();
+    timeScaleController?.kill?.();
+    killHoverTweens();
+    if (autoCloseTimer) {
+      clearTimeout(autoCloseTimer);
+      autoCloseTimer = null;
+    }
+    pendulum = null;
+    timeScaleController = null;
+    isEntryComplete = false;
+    isHoverActive = false;
+    [wrapper, svg, badge, number, label].forEach((el) => {
+      if (el) gsap.set(el, { clearProps: "all" });
+    });
+    if (textTop && textBottom) gsap.set([textTop, textBottom], { clearProps: "all" });
+    if (wrapper) gsap.set(wrapper, { autoAlpha: 0 });
+  }
+
+  function playEntry() {
+    if (typeof window !== "undefined" && window.innerWidth < 650) return;
+    killAllAnimations();
+    [wrapper, svg, badge, number, label, textTop, textBottom].forEach((el) => {
+      if (el) gsap.killTweensOf(el);
+    });
+    gsap.set(wrapper, { autoAlpha: 0 });
+    gsap.set(svg, { rotation: 180, scale: 0.8, opacity: 0, y: -26, transformOrigin: "50% 50%" });
+    gsap.set(badge, { scale: 0.5, opacity: 0 });
+    gsap.set(number, { y: 20, opacity: 0, color: "#f7f6f4" });
+    gsap.set(label, { opacity: 0, xPercent: -50, x: 1, y: 15, scale: 1 });
+    if (textTop && textBottom) gsap.set([textTop, textBottom], { opacity: 0.8 });
+
+    const badge20Delay =
+      parseFloat(
+        typeof getComputedStyle !== "undefined"
+          ? getComputedStyle(document.documentElement).getPropertyValue("--badge-20lat-delay")
+          : ""
+      ) || 1.25;
+    const master = gsap.timeline({ delay: badge20Delay });
+
+    master.to(wrapper, { autoAlpha: 1, duration: 0.01 }, 0);
+    master.to(
+      svg,
+      { rotation: 33, scale: 1, opacity: 1, duration: 1.4, ease: "power2.out", transformOrigin: "50% 50%" },
+      0
+    );
+    master.to(badge, { scale: 1, opacity: 1, duration: 0.8, ease: "back.out(1.7)" }, 0.4);
+    master.to(number, { y: -5, opacity: 1, duration: 0.6, ease: "power2.out" }, 0.7);
+    master.to(label, { opacity: 0.8, duration: 0.4, ease: "power2.out" }, 0.9);
+    master.call(
+      () => {
+        isEntryComplete = true;
+        pendulum = gsap.to(svg, {
+          rotation: -33,
+          duration: 9.75,
+          ease: "sine.inOut",
+          transformOrigin: "50% 50%",
+          yoyo: true,
+          repeat: -1,
+        });
+      },
+      [],
+      1.4
+    );
+    cleanups.push(() => master.kill());
+  }
+
+  function handleHoverEnter() {
+    if (!isEntryComplete || !pendulum) return;
+    if (isHoverActive) return;
+    isHoverActive = true;
+    killHoverTweens();
+    hoverTweens.push(
+      gsap.to(badge, { scale: 0.85, duration: 1.5, ease: "power2.out", overwrite: "auto" }),
+      gsap.to(number, {
+        color: "transparent",
+        textShadow: "1px 1px 0px rgba(255,255,255,0.2), -1px -1px 0px rgba(0,0,0,0)",
+        duration: 1,
+        overwrite: "auto",
+      }),
+      gsap.to(label, { opacity: 1, color: "#b0b0b0", scale: 0.85, duration: 0.6, ease: "power2.out", overwrite: "auto" }),
+      gsap.to(svg, { scale: 1.1, duration: 2.0, ease: "elastic.out(1, 0.3)", transformOrigin: "50% 50%", overwrite: "auto" })
+    );
+    if (textTop && textBottom) {
+      hoverTweens.push(
+        gsap.to([textTop, textBottom], {
+          opacity: 0.5,
+          duration: 2.0,
+          ease: "elastic.out(1, 0.3)",
+          overwrite: "auto",
+        })
+      );
+    }
+    timeScaleController?.kill?.();
+    timeScaleController = gsap
+      .timeline()
+      .to(pendulum, { timeScale: 12, duration: 4, ease: "sine.in" })
+      .to(pendulum, { timeScale: 1, duration: 6, ease: "sine.out" });
+  }
+
+  function handleHoverLeave() {
+    if (!isEntryComplete) return;
+    if (!isHoverActive) return;
+    isHoverActive = false;
+    killHoverTweens();
+    if (autoCloseTimer) {
+      clearTimeout(autoCloseTimer);
+      autoCloseTimer = null;
+    }
+    hoverTweens.push(
+      gsap.to(badge, { scale: 1, duration: 1.5, overwrite: "auto" }),
+      gsap.to(number, {
+        color: "#f7f6f4",
+        textShadow: "-2px -2px 3px rgba(255,255,255,1), 2px 2px 3px rgba(0,0,0,0.15)",
+        duration: 1,
+        overwrite: "auto",
+      }),
+      gsap.to(label, { opacity: 0.8, color: "#a0a0a0", scale: 1, duration: 0.6, ease: "power2.out", overwrite: "auto" }),
+      gsap.to(svg, { scale: 1, duration: 2.0, ease: "elastic.out(1, 0.3)", transformOrigin: "50% 50%", overwrite: "auto" })
+    );
+    if (textTop && textBottom) {
+      hoverTweens.push(
+        gsap.to([textTop, textBottom], {
+          opacity: 0.8,
+          duration: 2.0,
+          ease: "elastic.out(1, 0.3)",
+          overwrite: "auto",
+        })
+      );
+    }
+  }
+
+  const onWrapperEnter = () => {
+    if (!hasHover) return;
+    handleHoverEnter();
+  };
+  const onWrapperLeave = () => {
+    if (!hasHover) return;
+    handleHoverLeave();
+  };
+  const onWrapperClick = () => {
+    if (hasHover) return;
+    if (autoCloseTimer) clearTimeout(autoCloseTimer);
+    if (isHoverActive) {
+      autoCloseTimer = setTimeout(handleHoverLeave, MOBILE_HOVER_DURATION);
+      return;
+    }
+    handleHoverEnter();
+    autoCloseTimer = setTimeout(handleHoverLeave, MOBILE_HOVER_DURATION);
+  };
+  wrapper.addEventListener("mouseenter", onWrapperEnter);
+  wrapper.addEventListener("mouseleave", onWrapperLeave);
+  wrapper.addEventListener("click", onWrapperClick);
+  cleanups.push(() => {
+    wrapper.removeEventListener("mouseenter", onWrapperEnter);
+    wrapper.removeEventListener("mouseleave", onWrapperLeave);
+    wrapper.removeEventListener("click", onWrapperClick);
+  });
+
+  const pendulumIO = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((e) => {
+        if (pendulum) {
+          if (e.isIntersecting) pendulum.resume();
+          else pendulum.pause();
+        }
+      });
+    },
+    { rootMargin: "50px" }
+  );
+  pendulumIO.observe(wrapper);
+  cleanups.push(() => pendulumIO.disconnect());
+
+  if (typeof window !== "undefined") {
+    (window as Window & { badge20LatReplay?: () => void; badge20LatKill?: () => void }).badge20LatReplay = playEntry;
+    (window as Window & { badge20LatKill?: () => void }).badge20LatKill = killAllAnimations;
+  }
+
+  const t = requestAnimationFrame(() => playEntry());
+  cleanups.push(() => cancelAnimationFrame(t));
+
+  return () => {
+    killAllAnimations();
+    cleanups.forEach((c) => c());
+    if (typeof window !== "undefined") {
+      delete (window as Window & { badge20LatReplay?: () => void }).badge20LatReplay;
+      delete (window as Window & { badge20LatKill?: () => void }).badge20LatKill;
+    }
+  };
+}
+
+/** Uruchamia marquee + trail + badge 20 lat + CTA tooltip/season pill. Zwraca funkcję cleanup. */
 export function runHeroEngine(container: HTMLElement): () => void {
   const heroInitT0 = performance.now();
   const cleanupMarquee = runMarquee(container);
   const cleanupTrail = runTrail(container, heroInitT0);
+  const cleanupBadge20 = runBadge20Lat(container);
+  const cleanupCta = runCtaTooltipAndSeasonPill(container);
 
   return () => {
     cleanupMarquee();
     cleanupTrail();
+    cleanupBadge20();
+    cleanupCta();
   };
 }

@@ -17,7 +17,10 @@ export function BookStatsSection() {
     () => {
       const el = containerRef.current;
       if (!el) return;
-      return runBookStats(el);
+      const result = runBookStats(el);
+      if (!result) return;
+      if (typeof result === "function") return result;
+      return () => result.kill();
     },
     { scope: containerRef }
   );

@@ -112,12 +112,12 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
                   <path id="hero-arc-bottom" d="M 11,74 A 59,59 0 0,0 129,74" />
                 </defs>
                 <text className="rotating-text text-top" textAnchor="middle">
-                  <textPath href="#hero-arc-top" startOffset="50%">
+                  <textPath href="#hero-arc-top" xlinkHref="#hero-arc-top" startOffset="50%">
                     PRZEWAGA
                   </textPath>
                 </text>
                 <text className="rotating-text text-bottom" textAnchor="middle">
-                  <textPath href="#hero-arc-bottom" startOffset="50%">
+                  <textPath href="#hero-arc-bottom" xlinkHref="#hero-arc-bottom" startOffset="50%">
                     DOŚWIADCZENIA
                   </textPath>
                 </text>

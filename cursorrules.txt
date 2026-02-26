@@ -1,4 +1,6 @@
-﻿# CONSTITUTION v2.5 — CURSOR RULES
+﻿WAŻNA ZASADA - W tym projekcie zawsze dostarczam Ci gotowy działający plik HTML danej sekcji, nie możesz od tak pominąć sobie jakichś funkcjonalności, kod musi być przeniesiony w taki sposób aby żadna funkcjonalność/wygląd nie została utracona.
+
+# CONSTITUTION v2.5 — CURSOR RULES
 # Stack: Next.js 16 (App Router) · React 19 · Tailwind · Turbopack · GSAP
 # Target: High-performance LP. INP ≤200ms · CLS <0.1 · LCP <2.5s
 

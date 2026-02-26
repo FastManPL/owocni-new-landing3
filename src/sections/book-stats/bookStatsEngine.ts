@@ -15,7 +15,7 @@ function getFrameExtension(): Promise<"avif" | "webp"> {
   return fetch(`${FRAMES_BASE}/frame-001.avif`).then((r) => (r.ok ? "avif" : "webp")).catch(() => "webp");
 }
 
-export function runBookStats(container: HTMLElement): () => void {
+export function runBookStats(container: HTMLElement): (() => void) | { kill: () => void; pause: () => void; resume: () => void } {
   gsap.registerPlugin(ScrollTrigger);
 
   const $ = (sel: string) => container.querySelector<HTMLElement>(sel);
@@ -267,7 +267,6 @@ export function runBookStats(container: HTMLElement): () => void {
   function createScrollAnimation() {
     const floorImages = $(".cs-floor--images");
     if (!floorImages) return;
-    if (!floorImages) return;
     bookTl = gsap.timeline({
       scrollTrigger: {
         trigger: floorImages,
@@ -395,19 +394,41 @@ export function runBookStats(container: HTMLElement): () => void {
     }
   }
 
-  getFrameExtension().then((ext) => {
-    frameExt = ext;
-    preloadSingleFrame(loadOrder[0]).then((idx) => {
-      onFrameLoaded(idx);
-      setupCanvasDPR();
-      drawFrame(0);
-      canvasEl.classList.add("is-ready");
-      loadQueue.shift();
-      loadNext();
-    }).catch(() => {
-      loadNext();
+  let preloadStarted = false;
+  function startPreload() {
+    if (preloadStarted) return;
+    preloadStarted = true;
+    getFrameExtension().then((ext) => {
+      frameExt = ext;
+      preloadSingleFrame(loadOrder[0]).then((idx) => {
+        onFrameLoaded(idx);
+        setupCanvasDPR();
+        drawFrame(0);
+        canvasEl.classList.add("is-ready");
+        loadQueue.shift();
+        loadNext();
+      }).catch(() => {
+        loadNext();
+      });
     });
-  });
+  }
+
+  const sentryEl = $id("book-frames-sentry");
+  if (sentryEl) {
+    const sentryIO = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          startPreload();
+          sentryIO.disconnect();
+        }
+      },
+      { rootMargin: "1000px 0px 1000px 0px" }
+    );
+    sentryIO.observe(sentryEl);
+    observers.push(sentryIO);
+  } else {
+    startPreload();
+  }
 
   cleanups.push(() => {
     if (bookST) {
@@ -434,10 +455,17 @@ export function runBookStats(container: HTMLElement): () => void {
     });
   });
 
-  return () => {
+  function kill() {
     cleanups.forEach((c) => c());
     observers.forEach((o) => o.disconnect());
     timerIds.forEach((id) => clearTimeout(id));
     gsapInstances.forEach((i) => i.revert?.());
-  };
+  }
+  function pause() {
+    if (sectionST) sectionST.disable();
+  }
+  function resume() {
+    if (sectionST) sectionST.enable();
+  }
+  return { kill, pause, resume };
 }
