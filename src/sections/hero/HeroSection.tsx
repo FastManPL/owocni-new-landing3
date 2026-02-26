@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { useGSAP } from "@gsap/react";
 import type { Tier } from "@/lib/autoTier";
+import { runHeroEngine } from "./heroEngine";
 import "./hero-section.css";
 
 export interface HeroSectionProps {
@@ -51,6 +53,16 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
     });
     return () => cancelAnimationFrame(t);
   }, []);
+
+  // Silnik: karuzela logotypów (marquee) + trail (obrazki za myszką) — Typ B, cleanup w return
+  useGSAP(
+    () => {
+      const el = containerRef.current;
+      if (!el) return;
+      return runHeroEngine(el);
+    },
+    { scope: containerRef }
+  );
 
   return (
     <section
