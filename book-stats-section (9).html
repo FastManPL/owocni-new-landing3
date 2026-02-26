@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sekcja — book-stats</title>
+
+<!-- ============ TEST SHELL: Fonts ============ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap" rel="stylesheet">
+
+<!-- ============================================================
+     TEST SHELL: Global base — NIE jest częścią sekcji
+     ============================================================ -->
+<style>
+html { font-size: 1rem; }
+@media screen and (min-width: 1801px) {
+  html { font-size: 1.25rem; }
+}
+@media screen and (max-width: 1800px) and (min-width: 992px) {
+  html { font-size: calc(1.1vw); }
+}
+@media screen and (max-width: 991px) and (min-width: 480px) {
+  html { font-size: calc(0.3rem + 1.5vw); }
+}
+@media screen and (max-width: 479px) {
+  html { font-size: 5vw; }
+}
+
+:root {
+  --blue-dark: #02021e;
+  --grey-light: #f5f5f7;
+  --yellow: #fdc448;
+  --gap-sm: 1rem;
+  --gap-md: 1.5rem;
+  --gap-lg: 2.5rem;
+  --radius-default: 1.5rem;
+  --radius-mobile: 1rem;
+  --20: 1.25rem;
+  --48: 3rem;
+  --font-serif: "Times New Roman", Times, "Noto Serif", "Droid Serif", serif;
+  --font-sans: "Segoe UI", Roboto, "Helvetica Neue", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", Menlo, "Roboto Mono", monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: 'Lexend', sans-serif;
+  background-color: #f7f6f4;
+  color: #252525;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+</style>
+
+<!-- ============================================================
+     SEKCJA: book-stats — CSS
+     ============================================================ -->
+<style>
+/* -----------------------------------------------------------
+   Sekcja i kontener
+   ----------------------------------------------------------- */
+#book-stats-section {
+  padding: 5rem 1.25rem;
+  position: relative;
+  width: 100%;
+}
+@media screen and (max-width: 991px) {
+  #book-stats-section { padding: 3.5rem 2rem; }
+}
+@media screen and (max-width: 767px) {
+  #book-stats-section { padding: 2.5rem 1rem; }
+}
+
+#book-stats-section .container {
+  width: 100%;
+  max-width: 82rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* -----------------------------------------------------------
+   CUSTOM SECTIONS — Piętro layout
+   Proporcja: lewa ~45.3% | gap 0.5rem | prawa ~54.1%
+   flex: 453/541 → flexbox sam odlicza gap. ZERO overflow.
+   ----------------------------------------------------------- */
+#book-stats-section .cs-floor {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+#book-stats-section .cs-floor__left {
+  flex: 453 1 0%;
+  min-width: 0;
+}
+#book-stats-section .cs-floor__right {
+  flex: 541 1 0%;
+  min-width: 0;
+}
+
+/* --- Piętro 1: Obrazy --- */
+#book-stats-section .cs-floor--images {
+  margin-bottom: var(--48);
+  align-items: center;
+}
+
+#book-stats-section .cs-img-placeholder {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(37,32,48,0.3);
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  user-select: none;
+  /* Soft edge blend — 2% fade from each edge into page background.
+     Masks compression artifacts at image borders (WebP/AVIF color shift).
+     intersect = all 4 must agree → uniform corner treatment. */
+  -webkit-mask-image:
+    linear-gradient(to right,  transparent 0%, black 2%),
+    linear-gradient(to left,   transparent 0%, black 2%),
+    linear-gradient(to bottom, transparent 0%, black 2%),
+    linear-gradient(to top,    transparent 0%, black 2%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right,  transparent 0%, black 2%),
+    linear-gradient(to left,   transparent 0%, black 2%),
+    linear-gradient(to bottom, transparent 0%, black 2%),
+    linear-gradient(to top,    transparent 0%, black 2%);
+  mask-composite: intersect;
+}
+
+#book-stats-section .cs-img--stats {
+  aspect-ratio: 606 / 456;
+  background: linear-gradient(135deg, #e8e4e0 0%, #ddd8d2 60%, #d5cfc8 100%);
+}
+
+#book-stats-section .cs-img--book {
+  aspect-ratio: 1000 / 720;
+  background: linear-gradient(135deg, #e2ddd8 0%, #d8d2cc 60%, #cec7bf 100%);
+  position: relative;
+}
+/* [FIX-5] aspect-ratio fallback — Safari <15, Chrome <88.
+   padding-bottom creates proportional height. overflow:hidden on parent
+   → min-height:auto=0 → height:0 respected. Canvas (absolute) fills padding box. */
+@supports not (aspect-ratio: 1 / 1) {
+  #book-stats-section .cs-img--stats { height: 0; padding-bottom: 75.25%; /* 456/606 */ }
+  #book-stats-section .cs-img--book  { height: 0; padding-bottom: 72%;    /* 720/1000 */ }
+}
+
+/* --- Canvas frame sequence: fills parent, hidden until ready --- */
+#book-stats-section #book-frames-canvas {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0; /* [FIX-4] Safari <14.1 longhand fallback */
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  will-change: transform; /* #12: Guarantee dedicated compositor layer for drawImage */
+}
+#book-stats-section #book-frames-canvas.is-ready {
+  opacity: 1;
+}
+#book-stats-section .cs-img-fallback {
+  position: relative;
+  z-index: 1;
+  transition: opacity 0.4s ease;
+}
+#book-stats-section #book-frames-canvas.is-ready ~ .cs-img-fallback {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --- Piętro 2: Teksty --- */
+#book-stats-section .cs-floor--texts {
+  align-items: stretch;
+}
+/* [FIX-14] Safari 13-15.3: height:100% fails in flex-stretched items.
+   Dual mechanism: modern browsers use height:100%, old Safari uses flex-grow:1. */
+#book-stats-section .cs-floor--texts .cs-floor__right {
+  display: flex;
+  flex-direction: column;
+}
+#book-stats-section .cs-floor--texts .cs-stats-placeholder {
+  flex-grow: 1;
+}
+
+#book-stats-section .cs-text-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+}
+#book-stats-section .cs-text-block h2 {
+  font-size: 4.1rem;
+  font-weight: 400;
+  line-height: 1.125;
+  letter-spacing: -0.04em;
+  color: #252030;
+  padding-bottom: 0.15em;   /* [FIX-15] Descender safety for ą/ę with background-clip:text */
+  margin-bottom: -0.15em;   /* [FIX-15] Neutralizes padding — net displacement = 0 */
+  background-image: linear-gradient(
+    135deg,
+    #252030 2%,
+    #2a2130 44%,
+    #382630 56.7%,
+    #512b2b 67.5%,
+    #7d3527 80.2%,
+    #7d3527 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#book-stats-section .cs-text-block h2 strong {
+  font-weight: 800;
+  -webkit-text-fill-color: transparent;
+}
+#book-stats-section .cs-text-block p {
+  font-size: 2.25rem;
+  color: #252525;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+/* --- Stats placeholder: container query host (COUNTER LIVES HERE) ---
+   Override: display block, container-type dla cqi units wewnątrz.
+   Background jako fallback przed załadowaniem. */
+#book-stats-section .cs-stats-placeholder {
+  container-type: inline-size;
+  contain-intrinsic-size: auto 30rem; /* #14: Firefox mobile — hint for engines with contain + height:auto bugs */
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 12rem;
+  background: transparent;
+  overflow: hidden;
+  padding: 0;
+}
+
+#book-stats-section .cs-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(37,32,48,0.08);
+  margin-bottom: var(--48);
+}
+
+/* --- Tablet (768–991px) --- */
+@media screen and (max-width: 991px) {
+  #book-stats-section .cs-text-block h2 { font-size: 2.5rem; }
+  #book-stats-section .cs-text-block p { font-size: 1.25rem; }
+}
+
+/* --- Mobile (<767px) --- */
+@media screen and (max-width: 767px) {
+  #book-stats-section .cs-floor { flex-direction: column; gap: var(--gap-md); }
+  #book-stats-section .cs-floor__left,
+  #book-stats-section .cs-floor__right { flex: none; width: 100%; }
+
+  #book-stats-section .cs-floor--images .cs-floor__right { order: 1; }
+  #book-stats-section .cs-floor--images .cs-floor__left  { order: 2; }
+
+  #book-stats-section .cs-floor--texts .cs-floor__left  { order: 1; }
+  #book-stats-section .cs-floor--texts .cs-floor__right { order: 2; }
+
+  #book-stats-section .cs-text-block h2 { font-size: 1.75rem; line-height: 1.1; }
+  #book-stats-section .cs-text-block p { font-size: 1rem; }
+  #book-stats-section .cs-stats-placeholder { height: auto; min-height: 10rem; }
+}
+
+/* --- FIX: zakres 480–767px --- */
+@media screen and (min-width: 480px) and (max-width: 767px) {
+  #book-stats-section .cs-text-block { text-align: center; gap: 1.5rem; }
+  #book-stats-section .cs-text-block h2 { font-size: 3.55rem; font-weight: 400; line-height: 1.1; letter-spacing: -0.04em; }
+  #book-stats-section .cs-text-block p { font-size: 1.6rem; font-weight: 300; line-height: 1.6; color: #252525; }
+  #book-stats-section .cs-text-block p br { display: none; }
+}
+
+/* --- FIX: <350px — subnagłówki countera -20% --- */
+@media screen and (max-width: 349px) {
+  #book-stats-section .cs-counter-sub {
+    font-size: max(2.88cqi, 9px);
+  }
+}
+
+/* --- FIX: <479px — divider ukryty, piętra blisko siebie --- */
+@media screen and (max-width: 479px) {
+  #book-stats-section .cs-divider { display: none; }
+  #book-stats-section .cs-floor--images { margin-bottom: var(--gap-md); }
+}
+
+
+/* ============================================================
+   COUNTER REELS — cqi-native
+   ============================================================
+   Bazowa jednostka: 18cqi (font-size cyfr)
+   Digits margin: -0.625em top, -0.775em bottom (kompensacja mask)
+   Spacing: space-between (height:100%, fluid gapy)
+   Sub <350px: -20% (2.88cqi / 9px floor)
+   ============================================================ */
+
+/* --- Zmienne animacji (scoped) --- */
+#book-stats-section {
+  --cr-ease-reel: cubic-bezier(0.22, 1.35, 0.36, 1);
+  --cr-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --cr-duration: 2400ms;
+  --cr-text-main: #111111;
+}
+
+/* --- Counter root: flex column ---
+   Reset kaskady defensywny (na wypadek dziedziczenia).
+   Żyje wewnątrz .cs-stats-placeholder (piętro 2, prawa kolumna). */
+#book-stats-section .cs-counters {
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--cr-text-main);
+  font-weight: 400;
+  font-size: 1rem;
+  user-select: auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0 2cqi;
+  height: 100%;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* --- Dividery między wierszami ---
+   ::before = między row 1 a 2
+   ::after  = między row 2 a 3
+   position:absolute → zero wpływu na layout/space-between.
+   Styl: 2px dual-line (cień + highlight) z fade na krawędziach. */
+#book-stats-section .cs-counters::before,
+#book-stats-section .cs-counters::after {
+  content: '';
+  position: absolute;
+  left: 2cqi;
+  right: 2cqi;
+  height: 2px;
+  background: linear-gradient(to bottom,
+    rgba(58, 46, 30, 0.15) 0%, rgba(58, 46, 30, 0.15) 50%,
+    rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.6) 100%
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  transform: translateZ(0);
+  pointer-events: none;
+}
+#book-stats-section .cs-counters::before {
+  top: 33.33%;
+}
+#book-stats-section .cs-counters::after {
+  top: 66.66%;
+}
+
+/* --- Counter row --- */
+#book-stats-section .cs-counter-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+/* --- Cyfry i sufiksy: fade in na .visible --- */
+#book-stats-section .cs-counter-digits,
+#book-stats-section .cs-counter-suffix {
+  opacity: 0;
+  transition: opacity 0.8s var(--cr-ease-out-expo);
+}
+#book-stats-section .cs-counter-row.visible .cs-counter-digits,
+#book-stats-section .cs-counter-row.visible .cs-counter-suffix {
+  opacity: 1;
+}
+
+/* --- KOL 1: Bębny cyfrowe ---
+   height/padding-top/mask w em → skalują się z font-size automatycznie.
+   1.05em = HARD CONSTRAINT (musi = translateY multiplier w JS). */
+#book-stats-section .cs-counter-digits {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  font-size: 18cqi;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  height: 2.5em;
+  padding-top: 0.725em;
+  margin-top: -0.625em;
+  margin-bottom: -0.775em;
+  transform: translateZ(0); /* #13: Samsung Internet — GPU-promote parent to fix mask + animated children glitch */
+  mask-image: linear-gradient(to bottom,
+    transparent 0%, transparent 25%,
+    black 40%, black 60%,
+    transparent 75%, transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0%, transparent 25%,
+    black 40%, black 60%,
+    transparent 75%, transparent 100%
+  );
+}
+
+/* --- KOL 2: Sufiks (%, h) — superscript --- */
+#book-stats-section .cs-counter-suffix {
+  font-size: 5.8cqi;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  padding-left: 0.14em;
+  align-self: center;
+  margin-top: -3.9cqi;
+  min-width: 6cqi;
+}
+
+/* --- KOL 3: Label (heading + subheading) --- */
+#book-stats-section .cs-counter-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: max(0.65cqi, 2px);
+  margin-left: 3cqi;
+  align-self: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Heading: sweep gradient szary→czarny (GSAP animuje backgroundPosition) */
+#book-stats-section .cs-counter-heading {
+  font-size: 4.7cqi;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  background: linear-gradient(to right, var(--cr-text-main) 49%, #666 51%);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Subheading: safety floor max(cqi, 11px) na małych kontenerach */
+#book-stats-section .cs-counter-sub {
+  font-size: max(3.6cqi, 11px);
+  font-weight: 300;
+  line-height: 1.15;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* --- Reel: kolumna cyfrowa --- */
+#book-stats-section .cs-reel {
+  display: flex;
+  flex-direction: column;
+  /* #16: will-change managed by JS — added before spin, removed after transitionend */
+  transform: translateY(0);
+  transition: transform var(--cr-duration) var(--cr-ease-reel);
+}
+
+/* --- Digit: slot w bębnie ---
+   height: 1.05em — MUSI odpowiadać mnożnikowi w JS translateY */
+#book-stats-section .cs-digit {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 1.05em;
+}
+
+/* --- Symbol suffiksu (span wewnątrz suffix slot) --- */
+#book-stats-section .cs-suffix-symbol {
+  display: block;
+}
+
+/* [FIX-6] Container Query fallback — Safari <16, Chrome <105.
+   Without cqi support, font-size/margin/padding fall to inherited values → broken layout.
+   clamp/vw approximations keep counters readable. @supports not → zero impact on modern. */
+@supports not (container-type: inline-size) {
+  #book-stats-section .cs-counter-digits  { font-size: clamp(2.6rem, 9vw, 5.4rem); }
+  #book-stats-section .cs-counter-suffix  { font-size: clamp(1.1rem, 3.2vw, 1.8rem); min-width: 2rem; margin-top: -1rem; }
+  #book-stats-section .cs-counter-heading { font-size: clamp(1rem, 3.2vw, 1.6rem); }
+  #book-stats-section .cs-counter-sub     { font-size: clamp(0.75rem, 2.6vw, 1rem); }
+  #book-stats-section .cs-counter-label   { margin-left: 1rem; gap: 2px; }
+  #book-stats-section .cs-counters        { padding: 0 0.5rem; }
+  #book-stats-section .cs-counters::before,
+  #book-stats-section .cs-counters::after  { left: 0.5rem; right: 0.5rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SEKCJA: book-stats — HTML
+     ============================================================ -->
+<!-- TEST SHELL: Scroll spacer (provides scroll distance for ScrollTrigger) -->
+<div style="height:100vh;display:flex;align-items:center;justify-content:center;opacity:0.3;font-size:1.5rem;color:#999;">↓ Scroll down to book-stats section ↓</div>
+
+<!-- SENTRY: Early preload trigger for book frame sequence -->
+<div id="book-frames-sentry" aria-hidden="true" style="height:0;overflow:hidden;pointer-events:none;"></div>
+
+<section id="book-stats-section" class="section">
+  <div class="container">
+
+    <!-- PIĘTRO 1: OBRAZY -->
+    <div class="cs-floor cs-floor--images">
+      <div class="cs-floor__left">
+        <div class="cs-img-placeholder cs-img--stats"><span>Statystyki · 606 × 456</span></div>
+      </div>
+      <div class="cs-floor__right">
+        <div class="cs-img-placeholder cs-img--book">
+          <canvas id="book-frames-canvas" aria-hidden="true"></canvas>
+          <span class="cs-img-fallback">Książka · 1000 × 720</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cs-divider"></div>
+
+    <!-- PIĘTRO 2: TEKSTY -->
+    <div class="cs-floor cs-floor--texts">
+      <div class="cs-floor__left">
+        <div class="cs-text-block">
+          <h2>Rezultaty,<br>obserwowane<br>po&nbsp;<strong style="font-weight:800">10</strong>&nbsp;miesiącach.</h2>
+          <p>Większość przedsiębiorców<br>obserwuje poprawę, w&nbsp;całym<br>procesie zdobywania klientów.</p>
+        </div>
+      </div>
+      <div class="cs-floor__right">
+        <div class="cs-stats-placeholder">
+
+          <!-- ========== COUNTER REELS ========== -->
+          <div class="cs-counters">
+
+            <div class="cs-counter-row" data-counter-row>
+              <div class="cs-counter-digits" data-counter data-digits="5,3" data-suffix="%"></div>
+              <div class="cs-counter-suffix" data-suffix-slot></div>
+              <div class="cs-counter-label">
+                <span class="cs-counter-heading">Więcej zapytań</span>
+                <span class="cs-counter-sub">Pewność ciągłości zamówień</span>
+              </div>
+            </div>
+
+            <div class="cs-counter-row" data-counter-row>
+              <div class="cs-counter-digits" data-counter data-digits="3,9" data-suffix="%"></div>
+              <div class="cs-counter-suffix" data-suffix-slot></div>
+              <div class="cs-counter-label">
+                <span class="cs-counter-heading">Wzrostu przychodów</span>
+                <span class="cs-counter-sub">Więcej pieniędzy w kieszeni</span>
+              </div>
+            </div>
+
+            <div class="cs-counter-row" data-counter-row>
+              <div class="cs-counter-digits" data-counter data-digits="1,0" data-suffix="h"></div>
+              <div class="cs-counter-suffix" data-suffix-slot></div>
+              <div class="cs-counter-label">
+                <span class="cs-counter-heading">Odzyskanych tygodniowo</span>
+                <span class="cs-counter-sub">Na tłumaczeniu klientom oferty</span>
+              </div>
+            </div>
+
+          </div>
+          <!-- ========== /COUNTER REELS ========== -->
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- TEST SHELL: Bottom scroll spacer -->
+<div style="height:100vh;display:flex;align-items:center;justify-content:center;opacity:0.3;font-size:1.5rem;color:#999;">↑ End of test area ↑</div>
+
+<!-- ============ GSAP (wymagany przez counter heading sweep) ============ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+<!-- ============================================================
+     SEKCJA: book-stats — JS
+     ============================================================ -->
+<script>
+(function() {
+  function init(container) {
+    /* [FIX-11] Null guard — SPA/lazy-load may call init before section is in DOM */
+    if (!container) return { kill: function(){}, pause: function(){}, resume: function(){} };
+    var $ = function(sel) { return container.querySelector(sel); };
+    var $$ = function(sel) { return container.querySelectorAll(sel); };
+    var $id = function(id) { return container.querySelector('#' + id); };
+
+    var DEBUG_MODE = (new URLSearchParams(window.location.search)).has('debug')
+      || localStorage.getItem('debug') === '1';
+
+    var getScroll = function() { return window.lenis ? window.lenis.scroll : window.scrollY; };
+
+    var cleanups = [];
+    var gsapInstances = [];
+    var timerIds = [];
+    var observers = [];
+    var hfListeners = [];
+
+    /* Shared ref for Typ B pause/resume — bookFrames IIFE populates this */
+    var sectionST = null;
+
+    /* ========================================================
+       COUNTER REELS
+       ======================================================== */
+    var statsContainer = $('.cs-stats-placeholder');
+    var rows = [].slice.call($$('[data-counter-row]'));
+    var wrappers = [].slice.call($$('[data-counter]'));
+    var ready = false;
+    var spun = false;
+
+    /* --- BUILD: bęben cyfrowy 0→target ---
+       Logika identyczna z oryginałem:
+       - digit=0 → fullRotations=1 (pełny obrót, ląduje na 0)
+       - digit>0 → fullRotations=0 (bezpośredni spin do targetu)
+       - _totalSteps = fullRotations×10 + target
+       - translateY = _totalSteps × 1.05em (HARD CONSTRAINT)
+    */
+    function buildReel(parent, target, fullRotations) {
+      var reel = document.createElement('div');
+      reel.className = 'cs-reel';
+
+      var n, r, d;
+      /* Bazowy cykl 0-9 (zawsze) */
+      for (n = 0; n <= 9; n++) {
+        d = document.createElement('div');
+        d.className = 'cs-digit';
+        d.innerText = n;
+        reel.appendChild(d);
+      }
+      /* Dodatkowe pełne rotacje */
+      for (r = 0; r < fullRotations; r++) {
+        for (n = 0; n <= 9; n++) {
+          d = document.createElement('div');
+          d.className = 'cs-digit';
+          d.innerText = n;
+          reel.appendChild(d);
+        }
+      }
+      /* Tail: docieranie do targetu po rotacjach */
+      if (fullRotations > 0 && target > 0) {
+        for (n = 0; n <= target; n++) {
+          d = document.createElement('div');
+          d.className = 'cs-digit';
+          d.innerText = n;
+          reel.appendChild(d);
+        }
+      }
+
+      reel._totalSteps = fullRotations * 10 + target;
+      parent.appendChild(reel);
+      return reel;
+    }
+
+    function buildCounter(w) {
+      w.innerHTML = '';
+      var digits = w.dataset.digits.split(',').map(Number);
+
+      var reels = digits.map(function(digit) {
+        var rotations = digit === 0 ? 1 : 0;
+        return buildReel(w, digit, rotations);
+      });
+
+      /* Suffix: budowany dynamicznie w sąsiednim slocie */
+      var suffixSlot = w.closest('[data-counter-row]').querySelector('[data-suffix-slot]');
+      suffixSlot.innerHTML = '';
+      var sym = document.createElement('span');
+      sym.className = 'cs-suffix-symbol';
+      sym.innerText = w.dataset.suffix;
+      suffixSlot.appendChild(sym);
+
+      w._reels = reels;
+    }
+
+    /* --- SPIN: fire & forget + heading sweep ---
+       rAF w spinAll są fire-and-forget, NIE wchodzą do timerIds.
+       CSS transitions na reelach nie podlegają cleanup (zamierzone). */
+    function spinAll() {
+      if (spun) return;
+      spun = true;
+
+      /* #16: Collect all reels for will-change lifecycle */
+      var allReels = [];
+      wrappers.forEach(function(w) {
+        if (!w._reels) return;
+        w._reels.forEach(function(reel) { allReels.push(reel); });
+      });
+
+      /* #16: Promote to GPU layers BEFORE animation starts */
+      allReels.forEach(function(reel) { reel.style.willChange = 'transform'; });
+
+      wrappers.forEach(function(w) {
+        if (!w._reels) return;
+        w._reels.forEach(function(reel, i) {
+          reel.style.transitionDelay = i * 120 + 'ms';
+          /* Double-rAF: gwarantuje że przeglądarka zacommituje
+             początkowy stan (translateY:0) przed ustawieniem celu.
+             Bez tego transition może nie odpalić. */
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              reel.style.transform = 'translateY(-' + (reel._totalSteps * 1.05) + 'em)';
+            });
+          });
+        });
+      });
+
+      /* #16: Reclaim GPU layers after last reel finishes.
+         Last reel = longest delay. Listen once, clean all.
+         [FIX-8] Watchdog timer: if transitionend fails (device sleep, tab bg),
+         setTimeout at 2500ms (--cr-duration=2400ms + 100ms buffer) ensures cleanup. */
+      if (allReels.length > 0) {
+        var lastReel = allReels[allReels.length - 1];
+        var fallbackTimer;
+        var cleanupLayers = function() {
+          lastReel.removeEventListener('transitionend', onSpinEnd);
+          clearTimeout(fallbackTimer);
+          allReels.forEach(function(r) { r.style.willChange = 'auto'; });
+        };
+        var onSpinEnd = function(e) {
+          if (e.propertyName !== 'transform') return;
+          cleanupLayers();
+        };
+        lastReel.addEventListener('transitionend', onSpinEnd);
+        fallbackTimer = setTimeout(cleanupLayers, 2500);
+        cleanups.push(cleanupLayers);
+      }
+
+      /* Headingi: sweep kolor left→right z bounce.out */
+      /* [FIX-12] Guard — CDN fail degrades gracefully (headings stay gray) */
+      if (window.gsap) {
+        var headings = [].slice.call(container.querySelectorAll('.cs-counter-heading'));
+        headings.forEach(function(h, i) {
+          var tween = gsap.to(h, {
+            backgroundPosition: '0% 0',
+            duration: 3,
+            delay: 0.3 + i * 0.15,
+            ease: 'bounce.out'
+          });
+          gsapInstances.push(tween);
+        });
+      }
+    }
+
+    /* --- IO: build reels when stats placeholder enters viewport ---
+       #11: Counters are now built EAGERLY in init (below).
+       IO only sets ready + adds .visible classes (opacity fade-in).
+       This eliminates ~90 DOM node insertions from scroll-time. */
+
+    /* EAGER BUILD: counters constructed immediately (hidden, opacity 0) */
+    wrappers.forEach(function(w) { buildCounter(w); });
+
+    var counterObserver = null;
+    if (statsContainer) {
+      counterObserver = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting && !ready) {
+          ready = true;
+          rows.forEach(function(row, i) {
+            var tid = setTimeout(function() { row.classList.add('visible'); }, i * 180);
+            timerIds.push(tid);
+          });
+          counterObserver.disconnect();
+        }
+      }, { threshold: 0.01 });
+      counterObserver.observe(statsContainer);
+      observers.push(counterObserver);
+    }
+
+    /* --- Scroll trigger: spin when 80% in viewport ---
+       Sprawdza pozycję .cs-stats-placeholder (nie całej sekcji). */
+    function onScroll() {
+      if (!ready || spun || !statsContainer) return;
+      var rect = statsContainer.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.80) {
+        spinAll();
+        /* OPT #5: Mission done — detach immediately. Eliminates
+           all further scroll-driven layout reads for counters. */
+        window.removeEventListener('scroll', onScroll);
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    cleanups.push(function() { window.removeEventListener('scroll', onScroll); });
+
+    /* ========================================================
+       BOOK FRAME SEQUENCE — Canvas scroll animation
+       ========================================================
+       Architecture: Type A (standard ScrollTrigger, no velocity)
+       Integration: scrollRuntime-compatible (requestRefresh, no direct ST.refresh)
+       Pattern: GSAP official imageSequenceScrub + research-backed DPR/cleanup
+       ======================================================== */
+    (function bookFrames() {
+      var FRAME_COUNT = 23;
+      var bookContainer = $('.cs-img--book');
+      var canvas = $id('book-frames-canvas');
+      if (!bookContainer || !canvas) return;
+
+      var ctx = canvas.getContext('2d');
+      /* [FIX-3] ctx null guard — iOS low-memory: getContext returns null.
+         Early return from IIFE → fallback label stays visible, counters work normally. */
+      if (!ctx) return;
+      var frames = new Array(FRAME_COUNT);   // ImageBitmap[] or Image[] — sparse until filled
+      var loaded = new Array(FRAME_COUNT);   // Boolean[] — true when frame[i] ready to draw
+      for (var li = 0; li < FRAME_COUNT; li++) { loaded[li] = false; }
+      var loadedCount = 0;
+      var displayIndex = -1;                  // last drawn frame (-1 = nothing drawn yet)
+      var playhead = { frame: 0 };
+      var bookTl = null;        // GSAP timeline
+      var bookST = null;        // ScrollTrigger ref
+      var bookRO = null;        // ResizeObserver
+      var sentryIO = null;      // IntersectionObserver
+      var preloadStarted = false;
+      var scrollEnabled = false; // true after priority frames + ST created
+      var allLoaded = false;     // OPT #4: fast-path bypass for findNearestLoaded
+      var roRafId = 0;           // #9: RO debounce rAF handle (for cleanup)
+
+      /* OPT #1: Cached geometry — updated ONLY in setupCanvasDPR/RO.
+         Eliminates getBoundingClientRect() from hot path (60-120×/s → 0). */
+      var cached = { cw: 0, ch: 0, sx: 0, sy: 0, sw: 0, sh: 0 };
+
+      /* ============================================================
+         Binary Subdivision Load Order
+         ============================================================
+         Apple-confirmed pattern (Ryan Geyer, dev tools analysis):
+         Wave 1: first + last (immediate bookend)
+         Wave 2: midpoint (½)
+         Wave 3: quarter points (¼, ¾)
+         Wave 4: eighth points (⅛, ⅜, ⅝, ⅞)
+         Wave 5+: fill remaining from center outward
+         ============================================================ */
+      function buildLoadOrder(count) {
+        var order = [];
+        var added = {};
+
+        function add(idx) {
+          idx = Math.round(idx);
+          if (idx < 0 || idx >= count || added[idx]) return;
+          added[idx] = true;
+          order.push(idx);
+        }
+
+        /* Wave 1: bookends */
+        add(0);
+        add(count - 1);
+
+        /* Wave 2-N: binary subdivision */
+        var step = count;
+        while (step > 1) {
+          step = step / 2;
+          for (var i = step; i < count; i += step) {
+            add(Math.round(i));
+          }
+        }
+
+        /* Safety: fill any gaps (shouldn't happen, but bulletproof) */
+        for (var j = 0; j < count; j++) { add(j); }
+
+        return order;
+      }
+
+      /* Priority threshold: first N frames are "priority"
+         (bookends + midpoint + quarters = 5 frames for 32)
+         After priority loaded → enable scroll interaction */
+      var PRIORITY_COUNT = 5; // frames 0, 31, 16, 8, 24
+
+      /* ============================================================
+         Find Nearest Loaded Frame
+         ============================================================
+         Given target frame index, search outward in both directions
+         for the closest loaded frame. O(32) max — zero cost.
+         Frame 0 is ALWAYS loaded first, so fallback = 0. */
+      function findNearestLoaded(target) {
+        if (loaded[target]) return target;
+        for (var d = 1; d < FRAME_COUNT; d++) {
+          if (target - d >= 0 && loaded[target - d]) return target - d;
+          if (target + d < FRAME_COUNT && loaded[target + d]) return target + d;
+        }
+        return 0; // ultimate fallback
+      }
+
+      /* --- Generate placeholder frames (colored canvases with numbers) ---
+         Single swap to production URLs: replace generatePlaceholders() with real URLs */
+      function generatePlaceholders() {
+        var arr = new Array(FRAME_COUNT);
+        for (var i = 0; i < FRAME_COUNT; i++) {
+          var hue = Math.round((i / FRAME_COUNT) * 300 + 20);
+          var offscreen = document.createElement('canvas');
+          offscreen.width = 1000;
+          offscreen.height = 720;
+          var octx = offscreen.getContext('2d');
+
+          /* Background gradient */
+          var grad = octx.createLinearGradient(0, 0, 1000, 720);
+          grad.addColorStop(0, 'hsl(' + hue + ', 30%, 75%)');
+          grad.addColorStop(1, 'hsl(' + ((hue + 40) % 360) + ', 25%, 65%)');
+          octx.fillStyle = grad;
+          octx.fillRect(0, 0, 1000, 720);
+
+          /* Frame number */
+          octx.fillStyle = 'rgba(0,0,0,0.25)';
+          octx.font = 'bold 180px sans-serif';
+          octx.textAlign = 'center';
+          octx.textBaseline = 'middle';
+          octx.fillText(String(i + 1), 500, 340);
+
+          /* Label */
+          octx.fillStyle = 'rgba(0,0,0,0.15)';
+          octx.font = '32px sans-serif';
+          octx.fillText('Frame ' + (i + 1) + ' / ' + FRAME_COUNT, 500, 460);
+
+          arr[i] = offscreen;
+        }
+        return arr;
+      }
+
+      /* --- DPR-aware canvas setup ---
+         Pattern: MDN + web.dev confirmed
+         Cap DPR at 2 for performance on 3x/4x mobile
+         #8: ctx null guard (SPA crash prevention — RO callback after cleanup)
+         #10: Guard on CSS dims, not buffer dims (catches subpixel flex rebalance) */
+      function setupCanvasDPR() {
+        if (!ctx) return; /* #8: Defensive — RO may fire after cleanup nulls ctx */
+
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var rect = bookContainer.getBoundingClientRect();
+        var cw = Math.round(rect.width);
+        var ch = Math.round(rect.height);
+
+        /* #10: Guard on CSS dimensions — catches changes invisible to buffer size.
+           Prevents stale cached geometry when flex/font-size shifts container by <1px. */
+        if (cw === cached.cw && ch === cached.ch) return;
+
+        /* Resize canvas buffer */
+        var newW = Math.round(rect.width * dpr);
+        var newH = Math.round(rect.height * dpr);
+        if (canvas.width !== newW || canvas.height !== newH) {
+          canvas.width = newW;
+          canvas.height = newH;
+          /* setTransform instead of scale — doesn't accumulate */
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        /* OPT #1: Cache CSS dimensions + cover-fit math.
+           Source dims (1000×720) are constant for all frames.
+           This eliminates ALL math from drawFrame hot path. */
+        var iw = 1000, ih = 720;
+        var scale = Math.max(cw / iw, ch / ih);
+        cached.cw = cw;
+        cached.ch = ch;
+        cached.sw = Math.round(iw * scale);
+        cached.sh = Math.round(ih * scale);
+        cached.sx = Math.round((cw - cached.sw) / 2);
+        cached.sy = Math.round((ch - cached.sh) / 2);
+
+        /* Immediate redraw after resize (prevents flash).
+           OPT #2: displayIndex reset forces redraw with new geometry. */
+        if (loadedCount > 0) {
+          displayIndex = -1; /* force redraw with new cached dimensions */
+          drawFrame(findNearestLoaded(Math.round(playhead.frame)));
+        }
+      }
+
+      /* --- Draw frame (cover fit) ---
+         OPT #1: Reads ONLY from cached geometry (zero layout reads).
+         OPT #2: Dirty check — skip if same frame already displayed.
+         #7: clearRect RESTORED — cover-fit rounding on some GPU/Safari
+             can leave 1px ghost edge. With dirty check, cost = 1 clear
+             per frame CHANGE (not per onUpdate), so impact is negligible. */
+      function drawFrame(index) {
+        /* OPT #2: Skip redundant draw — same frame, same size */
+        if (index === displayIndex) return;
+        if (!ctx) return; /* [FIX-1] Post-kill zombie ST guard — pattern from setupCanvasDPR line 917 */
+
+        var img = frames[index];
+        if (!img) return;
+
+        displayIndex = index;
+        ctx.clearRect(0, 0, cached.cw, cached.ch);
+        ctx.drawImage(img, cached.sx, cached.sy, cached.sw, cached.sh);
+      }
+
+      /* --- Called after each new frame loads ---
+         If the newly loaded frame is closer to current playhead
+         than what's currently displayed → redraw immediately.
+         This gives progressive quality improvement. */
+      function onFrameLoaded(index) {
+        loaded[index] = true;
+        loadedCount++;
+        /* OPT #4: flip fast-path flag when complete */
+        if (loadedCount === FRAME_COUNT) allLoaded = true;
+
+        var target = Math.round(playhead.frame);
+        var bestNow = allLoaded ? target : findNearestLoaded(target);
+
+        /* Redraw if we have a better (closer) frame than what's displayed */
+        if (Math.abs(bestNow - target) < Math.abs(displayIndex - target) || bestNow === target) {
+          drawFrame(bestNow);
+        }
+      }
+
+      /* --- GSAP ScrollTrigger animation ---
+         Created after priority frames loaded.
+         snap:"frame" on TWEEN (not ST!) — snaps playhead.frame to integer.
+         scrub: true — Lenis provides smoothing, no double-buffer needed.
+         onUpdate uses findNearestLoaded for graceful degradation. */
+      function createScrollAnimation() {
+        /* [FIX-12] Guard — CDN fail degrades gracefully (no scroll animation, fallback label visible) */
+        if (!window.gsap || !window.ScrollTrigger) return;
+        gsap.registerPlugin(ScrollTrigger);
+        ScrollTrigger.config({ ignoreMobileResize: true });
+
+        /* Universal pin — ALL viewports.
+           Calculation proves pin needed on mobile too:
+           iPhone SE 375×667: book=243px > 0.35×667=233 → ucieka
+           Landscape 667×375: book=459px > 0.35×375=131 → KATASTROFA
+           Pin freezes section at center, guarantees full 23-frame animation.
+           pinSpacing:true (default) → content below waits, zero jump. */
+        var floorImages = $('.cs-floor--images');
+
+        bookTl = gsap.timeline({
+          scrollTrigger: {
+            trigger: floorImages,
+            start: function() {
+              /* Dynamic pin position:
+                 Element fits → center (premium look, like Awwwards sites).
+                 Element > viewport → top with 8% breathing room.
+                 max() picks whichever gives more visibility.
+                 invalidateOnRefresh recalculates on resize/rotation. */
+              var elH = floorImages.offsetHeight;
+              var vh = window.innerHeight;
+              var idealTop = elH < vh
+                ? Math.round((vh - elH) / 2)              /* fits → center */
+                : Math.max(150, Math.round(vh * 0.25));    /* overflow → breathing room */
+              return 'top ' + idealTop;
+            },
+            end: function() {
+              /* Budget for 22 intervals: max(400, 45%vh).
+                 Desktop 971→437px→19.9px/fr, mobile 667→400px→18.2px/fr,
+                 landscape 375→400px→18.2px/fr. Always comfortable. */
+              return '+=' + Math.round(Math.max(400, window.innerHeight * 0.45));
+            },
+            scrub: true,
+            pin: true,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+          }
+        });
+
+        bookTl.to(playhead, {
+          frame: FRAME_COUNT - 1,
+          snap: 'frame',
+          ease: 'none',
+          onUpdate: function() {
+            var target = Math.round(playhead.frame);
+            drawFrame(allLoaded ? target : findNearestLoaded(target));
+          }
+        });
+
+        bookST = bookTl.scrollTrigger;
+        sectionST = bookST; /* Typ B: expose to init scope for pause/resume */
+        scrollEnabled = true;
+
+        /* Signal scrollRuntime (production) */
+        if (window.scrollRuntime && window.scrollRuntime.requestRefresh) {
+          window.scrollRuntime.requestRefresh('book-frames-loaded');
+        }
+      }
+
+      /* --- ResizeObserver — observe container (not canvas!) ---
+         No loop risk: we change canvas buffer, not CSS layout.
+         #9: rAF debounce — iOS rotation fires 3-7 RO callbacks during
+         animation. Each clears canvas → visible flash. rAF coalesces
+         all callbacks into single redraw per paint frame. */
+      function setupResizeObserver() {
+        if (!window.ResizeObserver) return;
+
+        bookRO = new ResizeObserver(function() {
+          cancelAnimationFrame(roRafId);
+          roRafId = requestAnimationFrame(function() { setupCanvasDPR(); });
+        });
+        bookRO.observe(bookContainer);
+      }
+
+      /* ============================================================
+         Preload — TEST SHELL (placeholders)
+         ============================================================
+         All 32 generated synchronously. Binary subdivision order
+         is used but completes instantly. For production: see below. */
+      function startPreload() {
+        if (preloadStarted) return;
+        preloadStarted = true;
+
+        /* TEST SHELL: instant placeholder generation */
+        var placeholders = generatePlaceholders();
+        var loadOrder = buildLoadOrder(FRAME_COUNT);
+
+        /* Simulate progressive loading (all instant for placeholders) */
+        for (var i = 0; i < loadOrder.length; i++) {
+          var idx = loadOrder[i];
+          frames[idx] = placeholders[idx];
+          loaded[idx] = true;
+          loadedCount++;
+        }
+        allLoaded = true; /* OPT #4: all frames ready synchronously */
+
+        /* First frame → show canvas */
+        setupCanvasDPR();
+        drawFrame(0);
+        canvas.classList.add('is-ready');
+
+        /* All loaded → enable scroll */
+        createScrollAnimation();
+        setupResizeObserver();
+
+        /* ─── PRODUCTION PATTERN (uncomment to replace above) ─── */
+        /*
+        var BASE_URL = '/assets/book-frames/';
+        var loadOrder = buildLoadOrder(FRAME_COUNT);
+        var loadQueue = loadOrder.slice(); // copy — we shift() from it
+        var concurrency = 0;
+        var MAX_CONCURRENT = 3; // Sequential-ish: 3 parallel max for speed + control
+
+        function loadNext() {
+          while (concurrency < MAX_CONCURRENT && loadQueue.length > 0) {
+            var idx = loadQueue.shift();
+            concurrency++;
+            preloadSingleFrame(idx).then(function(loadedIdx) {
+              concurrency--;
+              onFrameLoaded(loadedIdx);
+
+              // Phase gate: after priority frames → enable scroll
+              if (!scrollEnabled && loadedCount >= PRIORITY_COUNT) {
+                canvas.classList.add('is-ready');
+                createScrollAnimation();
+                setupResizeObserver();
+              }
+
+              // Continue loading remaining frames
+              loadNext();
+            }).catch(function(err) {
+              concurrency--;
+              console.warn('Frame load failed:', err);
+              loadNext(); // skip failed frame, continue
+            });
+          }
+        }
+
+        function preloadSingleFrame(index) {
+          var url = BASE_URL + 'frame-' + String(index + 1).padStart(3, '0') + '.webp';
+          return fetch(url)
+            .then(function(res) {
+              if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
+              return res.blob();
+            })
+            .then(function(blob) {
+              if (window.createImageBitmap) {
+                return createImageBitmap(blob).then(function(bmp) {
+                  frames[index] = bmp;
+                  return index;
+                });
+              }
+              return new Promise(function(resolve) {
+                var img = new Image();
+                var objUrl = URL.createObjectURL(blob);
+                img.onload = function() {
+                  URL.revokeObjectURL(objUrl); // OPT #6: prevent memory leak
+                  // #17: Pre-decode before marking frame ready.
+                  // Safari does lazy decode on first drawImage — 2-8ms stall.
+                  // decode() moves this off scroll hot path.
+                  if (img.decode) {
+                    img.decode().then(function() {
+                      frames[index] = img;
+                      resolve(index);
+                    }).catch(function() {
+                      frames[index] = img; // decode fail = still usable
+                      resolve(index);
+                    });
+                  } else {
+                    frames[index] = img;
+                    resolve(index);
+                  }
+                };
+                img.onerror = function() {
+                  URL.revokeObjectURL(objUrl); // OPT #6: cleanup on error too
+                  resolve(index);
+                };
+                img.src = objUrl;
+              });
+            });
+        }
+
+        // Kick off: load frame 0 first (always), show immediately
+        preloadSingleFrame(loadOrder[0]).then(function(idx) {
+          onFrameLoaded(idx);
+          setupCanvasDPR();
+          drawFrame(0);
+          canvas.classList.add('is-ready');
+
+          // Remove frame 0 from queue (already loaded)
+          loadQueue.shift();
+
+          // Start progressive loading of rest
+          loadNext();
+        }).catch(function(err) {
+          console.error('Critical: frame 0 failed to load', err);
+        });
+        */
+        /* ─── END PRODUCTION PATTERN ─── */
+      }
+
+      /* --- Sentry IO: start preload early (1000px before section) --- */
+      var sentryEl = document.getElementById('book-frames-sentry');
+      if (sentryEl) {
+        sentryIO = new IntersectionObserver(function(entries) {
+          if (entries[0].isIntersecting) {
+            startPreload();
+            sentryIO.disconnect();
+          }
+        }, { rootMargin: '1000px 0px 1000px 0px' });
+        sentryIO.observe(sentryEl);
+        observers.push(sentryIO);
+      } else {
+        /* Fallback: no sentry, start immediately */
+        startPreload();
+      }
+
+      /* --- Cleanup: register in kill() pipeline --- */
+      cleanups.push(function bookFramesCleanup() {
+        /* 1. Kill ScrollTrigger + timeline */
+        if (bookST) {
+          bookST.kill();
+          bookST = null;
+          sectionST = null;
+        }
+        if (bookTl) {
+          bookTl.kill();
+          bookTl = null;
+        }
+
+        /* 2. ResizeObserver + pending rAF */
+        cancelAnimationFrame(roRafId); /* #9/#18: Cancel pending debounced RO callback */
+        if (bookRO) {
+          bookRO.disconnect();
+          bookRO = null;
+        }
+
+        /* 3. Sentry IO */
+        if (sentryIO) {
+          sentryIO.disconnect();
+          sentryIO = null;
+        }
+
+        /* 4. Canvas memory release (Safari iOS pattern — width=1, not 0) */
+        if (canvas) {
+          canvas.width = 1;
+          canvas.height = 1;
+          var releaseCtx = canvas.getContext('2d');
+          if (releaseCtx) releaseCtx.clearRect(0, 0, 1, 1);
+          canvas.classList.remove('is-ready');
+        }
+
+        /* 5. Release ImageBitmaps (explicit .close() for GPU memory) */
+        if (frames && frames.length) {
+          frames.forEach(function(f) {
+            if (f && typeof f.close === 'function') f.close();
+          });
+        }
+        frames = [];
+        for (var ci = 0; ci < FRAME_COUNT; ci++) { loaded[ci] = false; }
+        loadedCount = 0;
+        allLoaded = false;
+        scrollEnabled = false;
+        preloadStarted = false;
+        playhead.frame = 0;
+        displayIndex = -1;
+        ctx = null;
+      });
+    })();
+
+    /* ========================================================
+       KILL — pełny cleanup
+       ======================================================== */
+    function kill() {
+      cleanups.forEach(function(fn) { try { fn(); } catch(e) {} });
+      hfListeners.forEach(function(fn) { try { fn(); } catch(e) {} });
+      timerIds.forEach(function(id) { clearTimeout(id); clearInterval(id); });
+      observers.forEach(function(o) { if (o && o.disconnect) o.disconnect(); });
+      gsapInstances.forEach(function(inst) {
+        if (inst && inst.revert) inst.revert();
+        if (inst && inst.kill) inst.kill();
+      });
+      ready = false;
+      spun = false;
+    }
+
+    /* ========================================================
+       Typ B lifecycle: pause / resume
+       Canvas + rAF = Typ B per konstytucja.
+       pause:  disable ScrollTrigger → onUpdate stops → drawFrame stops
+       resume: enable ScrollTrigger → resumes from current scroll position
+       ======================================================== */
+    function pause() {
+      if (sectionST) sectionST.disable();
+    }
+
+    function resume() {
+      if (sectionST) sectionST.enable();
+    }
+
+    return { kill: kill, pause: pause, resume: resume };
+  }
+
+  /* AUTO-INIT z kill guard */
+  if (window.bookStatsSection && window.bookStatsSection.kill) {
+    window.bookStatsSection.kill();
+  }
+  window.bookStatsSection = init(document.getElementById('book-stats-section'));
+})();
+</script>
+</body>
+</html>

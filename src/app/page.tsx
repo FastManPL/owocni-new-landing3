@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getVariant } from "@/config/variants";
 import { autoTier } from "@/lib/autoTier";
 import { HeroSection } from "@/sections/hero/HeroSection";
+import { RevenueReachVideoSection } from "@/sections/revenue-reach-video/RevenueReachVideoSection";
+import { BookStatsSection } from "@/sections/book-stats/BookStatsSection";
 
 export async function generateMetadata({
   searchParams,
@@ -26,6 +28,8 @@ export default async function HomePage({
   return (
     <main>
       <HeroSection headline={variant.h1} sub={variant.sub} tier={tier} />
+      <RevenueReachVideoSection />
+      <BookStatsSection />
     </main>
   );
 }
