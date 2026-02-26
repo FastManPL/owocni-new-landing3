@@ -41,15 +41,28 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
     }
   }, []);
 
-  // Animacja startowa: dodanie klasy .animate do gradientu/burst po mount (CSS keyframes)
+  // Animacja startowa: jak w oryginale — gradient ukryty do momentu .animate, double rAF żeby
+  // pierwsza widoczna klatka miała już keyframe 0% (rozchodzenie ze środka, nie flash na obrzeżach)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const gradient = el.querySelector(".startup-gradient");
+    const gradient = el.querySelector<HTMLElement>(".startup-gradient");
     const burst = el.querySelector(".burst-container");
+    if (gradient) {
+      gradient.style.visibility = "hidden";
+      gradient.style.opacity = "0";
+      gradient.style.transition = "none";
+    }
     const t = requestAnimationFrame(() => {
-      gradient?.classList.add("animate");
-      burst?.classList.add("animate");
+      requestAnimationFrame(() => {
+        if (gradient) {
+          gradient.style.transition = "";
+          gradient.style.visibility = "";
+          gradient.style.opacity = "";
+          gradient.classList.add("animate");
+        }
+        burst?.classList.add("animate");
+      });
     });
     return () => cancelAnimationFrame(t);
   }, []);

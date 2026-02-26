@@ -385,16 +385,17 @@
         display: block !important;
         --hero-hue1: 47;
         --hero-hue2: 260;
-        /* Wartości startowe dla Wariantu 102 */
+        /* Wartości startowe = keyframe 0% (rozchodzenie się ze środka; unikamy flashu obrzeży) */
         --hero-L1: 0.75; --hero-C1: 0.35;
         --hero-L2: 0.60; --hero-C2: 0.30;
-        --hero-opc: 100%;
-        --hero-gradient-h: 150%;
-        --hero-gradient-w: 100%;
+        --hero-opc: 30%;
+        --hero-gradient-h: 0%;
+        --hero-gradient-w: 0%;
         --hero-gradient-inner-opacity: 0%;
-        --hero-gradient-middle-opacity: 100%;
-        --hero-gradient-outer-opacity: 100%;
-        --hero-radial-center: 35%;
+        --hero-gradient-middle-opacity: 0%;
+        --hero-gradient-outer-opacity: 0%;
+        --hero-radial-center: 30%;
+        --hero-conic-rotate: -100deg;
         
         background-blend-mode: soft-light;
         
