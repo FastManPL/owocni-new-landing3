@@ -6,8 +6,8 @@ import { runBookStats } from "./bookStatsEngine";
 import "./book-stats-section.css";
 
 /**
- * Sekcja book-stats: piętro obrazów (statystyki + książka z klatkami) + piętro tekstów (H2 + liczniki).
- * Klatki 1–23 z katalogu /Ksiazka-Klatki (frame-001.webp … frame-023.webp). Tylko WEBP (bez innych rozmiarów).
+ * Sekcja book-stats: piętro obrazów (video statystyk + książka z klatkami) + piętro tekstów (H2 + liczniki).
+ * Lewa kolumna: video banner-konwersja-strony.mp4. Prawa: klatki 1–23 z /Ksiazka-Klatki (AVIF, fallback WEBP).
  * Uwaga: Pierwsza sekcja "wrapowana" — kolejna sekcja będzie się pojawiać pod spodem przy połowie wylotu (do doprecyzowania).
  */
 export function BookStatsSection() {
@@ -34,7 +34,16 @@ export function BookStatsSection() {
         <div className="cs-floor cs-floor--images">
           <div className="cs-floor__left">
             <div className="cs-img-placeholder cs-img--stats">
-              <span>Statystyki · 606 × 456</span>
+              <video
+                src="/assets/banner-konwersja-strony.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                className="cs-stats-video"
+                aria-hidden
+              />
             </div>
           </div>
           <div className="cs-floor__right">

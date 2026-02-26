@@ -1,7 +1,7 @@
 /**
  * Silnik sekcji book-stats: liczniki (reels) + sekwencja klatek książki (canvas + ScrollTrigger).
- * Klatki: /Ksiazka-Klatki/frame-001.webp … frame-023.webp (tylko WEBP; bez AVIF — jeden rozmiar).
- * Uwaga: Sekcja będzie "wrapowana" — kolejna sekcja pojawi się pod spodem przy połowie wylotu (do doprecyzowania).
+ * Klatki z /Ksiazka-Klatki: frame-001 … frame-023 w AVIF i WEBP (AVIF w pierwszej kolejności, fallback WEBP).
+ * Sposób działania animacji bez zmian — tylko źródło to prawdziwe IMG z folderu.
  */
 
 import gsap from "gsap";
@@ -10,7 +10,10 @@ import { scrollRuntime } from "@/lib/scrollRuntime";
 
 const FRAME_COUNT = 23;
 const FRAMES_BASE = "/Ksiazka-Klatki";
-const EXT = "webp";
+
+function getFrameExtension(): Promise<"avif" | "webp"> {
+  return fetch(`${FRAMES_BASE}/frame-001.avif`).then((r) => (r.ok ? "avif" : "webp")).catch(() => "webp");
+}
 
 export function runBookStats(container: HTMLElement): () => void {
   gsap.registerPlugin(ScrollTrigger);
@@ -298,9 +301,11 @@ export function runBookStats(container: HTMLElement): () => void {
     scrollRuntime.requestRefresh("book-frames-loaded");
   }
 
+  let frameExt: "avif" | "webp" = "webp";
+
   function preloadSingleFrame(index: number): Promise<number> {
     const num = String(index + 1).padStart(3, "0");
-    const url = `${FRAMES_BASE}/frame-${num}.${EXT}`;
+    const url = `${FRAMES_BASE}/frame-${num}.${frameExt}`;
     return fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
@@ -390,15 +395,18 @@ export function runBookStats(container: HTMLElement): () => void {
     }
   }
 
-  preloadSingleFrame(loadOrder[0]).then((idx) => {
-    onFrameLoaded(idx);
-    setupCanvasDPR();
-    drawFrame(0);
-    canvasEl.classList.add("is-ready");
-    loadQueue.shift();
-    loadNext();
-  }).catch(() => {
-    loadNext();
+  getFrameExtension().then((ext) => {
+    frameExt = ext;
+    preloadSingleFrame(loadOrder[0]).then((idx) => {
+      onFrameLoaded(idx);
+      setupCanvasDPR();
+      drawFrame(0);
+      canvasEl.classList.add("is-ready");
+      loadQueue.shift();
+      loadNext();
+    }).catch(() => {
+      loadNext();
+    });
   });
 
   cleanups.push(() => {

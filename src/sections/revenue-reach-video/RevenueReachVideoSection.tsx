@@ -3,26 +3,30 @@
 import { useRef, useEffect } from "react";
 import "./revenue-reach-video-section.css";
 
-const VIDEO_SRC = "/assets/banner-konwersja-strony.mp4";
+const VIDEO_SRC = "/assets/header/tworzenie-stron-mini.mp4";
+const BG_IMAGE_SRC = "/assets/dfgsrebern.jpg";
 
 export function RevenueReachVideoSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoMobileRef = useRef<HTMLVideoElement>(null);
+  const videoDesktopRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const section = sectionRef.current;
-    const video = videoRef.current;
-    if (!section || !video) return;
+    const mobile = videoMobileRef.current;
+    const desktop = videoDesktopRef.current;
+    if (!section) return;
 
     const io = new IntersectionObserver(
       (entries) => {
         const [e] = entries;
         if (!e) return;
-        if (e.isIntersecting) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
+        const play = e.isIntersecting;
+        [mobile, desktop].forEach((v) => {
+          if (!v) return;
+          if (play) v.play().catch(() => {});
+          else v.pause();
+        });
       },
       { threshold: 0.25 }
     );
@@ -37,6 +41,7 @@ export function RevenueReachVideoSection() {
       className="rrv-section"
       style={{ isolation: "isolate" }}
     >
+      <div className="rrv-bg-strip" aria-hidden />
       <div className="rrv-wrap">
         <div className="rrv-card">
           <div className="rrv-inner">
@@ -57,16 +62,37 @@ export function RevenueReachVideoSection() {
               </p>
             </div>
             <div className="rrv-video-wrap">
-              <video
-                ref={videoRef}
-                src={VIDEO_SRC}
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                className="w-full h-full object-cover"
+              <img
+                src={BG_IMAGE_SRC}
+                alt=""
+                className="rrv-bg-img"
+                loading="lazy"
               />
+              <div className="rrv-video-mobile">
+                <video
+                  ref={videoMobileRef}
+                  src={VIDEO_SRC}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="rrv-video-el"
+                />
+              </div>
+              <div className="rrv-video-desktop">
+                <video
+                  ref={videoDesktopRef}
+                  src={VIDEO_SRC}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="rrv-video-el"
+                  aria-hidden
+                />
+              </div>
             </div>
           </div>
         </div>
