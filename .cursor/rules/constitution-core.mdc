@@ -1,0 +1,15 @@
+---
+description: Core architecture and isolation rules from project constitution
+alwaysApply: true
+---
+
+# Constitution Core Rules
+
+- Keep `src/app/layout.tsx` as Server Component; avoid global `"use client"`.
+- Build page from isolated sections in `src/sections/*`; no cross-section imports.
+- Treat each section as a closed module: namespaced IDs/CSS/keyframes, no global selectors from section CSS.
+- Preserve section visual behavior and animation timelines unless user explicitly approves changes.
+- For GSAP sections, keep imperative animation logic inside `useGSAP` scoped to section root.
+- Use shared core utilities only for infra concerns (`scrollRuntime`, module loading, design tokens).
+- Keep DCI server-driven (resolve variants in Server Components); avoid client-side headline/content swaps.
+- Prefer minimal, local diffs; do not refactor unrelated files during migration/debug tasks.

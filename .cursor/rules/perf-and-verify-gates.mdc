@@ -1,0 +1,16 @@
+---
+description: Performance and verification gates for section work
+alwaysApply: true
+---
+
+# Performance and Verify Gates
+
+- Maintain stable geometry (no accidental CLS): reserve media space and avoid layout-jumping edits.
+- Keep animation performance-safe: prefer `transform`/`opacity`; preserve existing physics/timings.
+- Do not introduce non-passive `wheel`/`touchstart`/`touchmove` listeners unless strictly required.
+- For changes affecting scroll/animation, verify lifecycle cleanup (timers, rAF, observers, listeners).
+- Use section root isolation and layering discipline to avoid cross-section paint/stacking regressions.
+- After substantive edits, run verification commands and report results:
+  - `npm run build` (required)
+  - lint/typecheck/tests when relevant
+- If verification fails, fix or report blocker explicitly; never present unverified changes as complete.

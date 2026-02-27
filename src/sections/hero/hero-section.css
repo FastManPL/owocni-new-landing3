@@ -261,19 +261,19 @@
     pointer-events: none;
 }
 
-/* 1:1 oryginał — top/left 0, origin top left (jak w hero-phase3-standardize) */
+/* Start efektu ze środka sekcji (wizualnie jak referencja): mały punkt -> ekspansja na boki */
 #hero-section .startup-gradient {
     display: none;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     position: absolute;
-    top: 0;
-    left: 0;
+    top: 25%;
+    left: 25%;
     width: 50%;
     height: 50%;
     transform: scale(2);
-    transform-origin: top left;
+    transform-origin: center center;
 }
 
 /* Noise dither — rozbija gradient banding */
@@ -391,16 +391,17 @@
         display: block !important;
         --hero-hue1: 47;
         --hero-hue2: 260;
-        /* Wartości startowe dla Wariantu 102 — 1:1 oryginał */
+        /* Start z punktu centralnego (bez klatki „na obrzeżach”) */
         --hero-L1: 0.75; --hero-C1: 0.35;
         --hero-L2: 0.60; --hero-C2: 0.30;
-        --hero-opc: 100%;
-        --hero-gradient-h: 150%;
-        --hero-gradient-w: 100%;
+        --hero-opc: 30%;
+        --hero-gradient-h: 0%;
+        --hero-gradient-w: 0%;
         --hero-gradient-inner-opacity: 0%;
-        --hero-gradient-middle-opacity: 100%;
-        --hero-gradient-outer-opacity: 100%;
-        --hero-radial-center: 35%;
+        --hero-gradient-middle-opacity: 0%;
+        --hero-gradient-outer-opacity: 0%;
+        --hero-radial-center: 30%;
+        --hero-conic-rotate: -100deg;
         
         background-blend-mode: soft-light;
         
