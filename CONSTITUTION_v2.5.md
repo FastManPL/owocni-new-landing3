@@ -107,6 +107,23 @@
 | E5 | Logika animacji Makro-Sekcji może być rozbita na **czyste funkcje TS** (helpery) w tym samym folderze. Nie React komponenty — czyste funkcje przyjmujące timeline i elementy DOM. | Czytelność bez rozbijania monolityczności React component. Helpery nie wiedzą o React. |
 | E6 | Dla integratora Makro-Sekcja to jeden import, jedna linia w `page.tsx`. Nie wie i nie musi wiedzieć co jest w środku. | Integrator nie ingeruje w reżyserię przejść. |
 
+### E7. PIN+SNAP MACRO SECTIONS — KINETIC SAFE MODE (v2.5.1)
+
+Zakres: Makro-Sekcje z `pin: true` oraz `snap` (zwykle też `scrub`) — np. KINETIC/Bridge.
+
+- **P2.1 Idempotencja (MUST):** 1 pin = 1 instancja. Przed init sekcja zabija istniejące ST dla swojego roota (`trigger === container` lub po id).
+- **P2.2 fastScrollEnd (MUST NOT):** Makro-Sekcje z `snap` nie używają `fastScrollEnd`.
+- **P2.3 Mobile Resize Snap-Lock (MUST):** na touch przy `resize` / `visualViewport.resize` lock snap na ~200–300ms; w `snapTo()` podczas lock zwracaj `self.progress`.
+- **P2.4 Final Frame Freeze (MUST):** freeze ostatniej klatki dozwolony tylko na TOUCH; blokuje lokalne handlery resize komponentów. Nie blokuje desktop resize.
+- **P3.1 Desktop large resize recovery (MUST):** przy dużej zmianie viewportu (np. >15%) dla sekcji opartych o stałe pomiary init (`I`, `TOTAL_U`, `endPx`, itp.) stosować recovery: preferowany remount/reinit (zmiana key), fallback reload. Na TOUCH bez reload.
+- **P4.1 Manifest (MUST):** Makro-Sekcje pin+snap mają `geometryMutable: false`; `geometryRefresh` nie dotyczy (`"none"` / brak).
+- **P4.2 SpecialNotes (MUST):** manifest zawiera:
+  - `Pin+Snap Macro Section — Snap-Lock on touch resize`
+  - `Final Frame Freeze — touch only`
+  - `Desktop large resize recovery: remount/reinit`
+  - `NO fastScrollEnd`
+  - `Do not attach useGeometryRefresh / geometry signals`
+
 ### F. Dynamic Content Injection (DCI)
 
 | # | Zasada | Dlaczego |
@@ -754,6 +771,12 @@ Lokalny refresh jest akceptowalny WYŁĄCZNIE gdy zmiana geometrii jest w pełni
 - [ ] Event listenery wheel/touchmove/touchstart — `{ passive: true }` (C11). Wyjątek w specialNotes
 - [ ] One-shot animacje: `willChange: "auto"` na onComplete (J11). Tier 0 = obowiązkowe
 - [ ] Interaktywne elementy mają CSS `:active` state (G13 Ghost States)
+- [ ] **Makro-Sekcja pin+snap:** idempotent kill (1 pin = 1 instancja) przed init (E7/P2.1)
+- [ ] **Makro-Sekcja pin+snap:** `fastScrollEnd` nie występuje (E7/P2.2)
+- [ ] **Makro-Sekcja pin+snap:** Snap-Lock na touch `resize`/`visualViewport.resize` działa (E7/P2.3)
+- [ ] **Makro-Sekcja pin+snap:** Final Frame Freeze jest touch-only (E7/P2.4)
+- [ ] **Makro-Sekcja pin+snap:** manifest ma `geometryMutable: false` + komplet `specialNotes` z E7/P4.2
+- [ ] **Makro-Sekcja pin+snap:** integrator ma politykę desktop large resize recovery (remount/reinit; fallback reload) (E7/P3.1)
 
 ### Hero / Above the fold
 
@@ -828,3 +851,4 @@ Lokalny refresh jest akceptowalny WYŁĄCZNIE gdy zmiana geometrii jest w pełni
 | v2.3.1 | Mikrokorekty: B7.1 animationend + sekcje dynamiczne. B7.3 settle debounce. F8.1 safe renderer. hooks/ folder. FAQ specialNotes. R1 BLOCKER. |
 | v2.4 | Optymalizacja performance — LCP/INP/CLS. G11 (Device Tier 0/1/2), G12 (contain), J11 (GPU cleanup), A7 (React 19 Actions). G2/G7/G10/F9/I7/H8 rozszerzenia. AVIF, scrollbar-gutter, lazyOnload. |
 | v2.5 | **Zen Performance — wiedza z okopów top agencji.** NOWE REGUŁY: G13 (CSS Ghost States — `:active` feedback bez JS, perceived INP ≈ 0 w oknie pre-hydracji), G14 (Video faststart — moov atom, ffmpeg -movflags +faststart), G15 (Image Variant Budget — deviceSizes/qualities jawnie, uwaga AVIF cold-start), B8 (Shallow LCP — hero poster max 3-4 poziomy), B9 (`isolation: isolate` na sekcjach — paint containment -60-80%, bezpieczniejsze niż contain: layout), C10 (ScrollTrigger Budget — soft limit 40, batching > N triggerów per item), C11 (Passive event listeners — wheel/touchmove/touchstart MUSZĄ być passive), J11.1 (pre-rasteryzacja hero — will-change w statycznym CSS = 60fps od klatki 1), J12 (scheduler.yield() rekomendacja dla ciężkich initów >50ms). ROZSZERZENIA: G7 (dns-prefetch dla sGTM zamiast preconnect — chroni bandwidth), G8 (Video Cover Pattern — img overlay na video, przejście na `playing` event, zakaz natywnego poster), G12 (downgraded do opcjonalny — B9 isolation jest lepsze), A4 (Fraunces display: optional zamiast swap — 15KB zysk na 3G, zero CLS). CHECKLIST ZEN: Real Device Zen-Test (Samsung Galaxy A13, real 3G, kliknij accordion w 3s — palec na ekranie > Lighthouse), View Source preload scanner test, font subsetting weryfikacja, ScrollTrigger count, modulepreload weryfikacja. SŁOWNIK: Ghost States, Cover Image Pattern. ODRZUCONE: prefers-reduced-data CSS (dead spec), C9 First Input Shield (pokryte przez J12 + IO gate), G16 Runtime Watchdog (do risk register, nie domyślna reguła). |
+| v2.5.1 | **PIN+SNAP MACRO SECTIONS (KINETIC SAFE MODE).** Dodano tryb E7 dla Makro-Sekcji z `pin+snap`: idempotent init (1 pin = 1 instancja), zakaz `fastScrollEnd`, Snap-Lock na touch resize/visualViewport, touch-only Final Frame Freeze, polityka desktop large resize recovery (remount/reinit; fallback reload), blokada podpinania pod B7 (`geometryMutable: false` + specialNotes). Rozszerzono checklistę integracji o punkty P2/P3/P4. |

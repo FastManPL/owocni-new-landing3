@@ -1,0 +1,18 @@
+---
+description: KINETIC safe mode for macro sections with pin+snap
+alwaysApply: true
+---
+
+# PIN+SNAP Macro Safe Mode (v2.5.1)
+
+Applies to Macro Sections that use `pin: true` and `snap`.
+
+- Enforce idempotent init: before creating ST, kill prior instances for the same root/id (`1 pin = 1 instance`).
+- Do not use `fastScrollEnd` in pin+snap macro sections.
+- On touch devices, implement resize snap-lock (about 200-300ms) and return `self.progress` from `snapTo()` while locked.
+- Final-frame freeze is touch-only; never block desktop resize handling.
+- For large desktop resize (e.g. >15%), use recovery policy: remount/reinit (preferred), reload fallback.
+- Manifest requirements for pin+snap macro sections:
+  - `geometryMutable: false`
+  - do not attach `useGeometryRefresh` or geometry-signal hooks
+  - include `specialNotes` covering snap-lock, touch-only freeze, desktop recovery, and no fastScrollEnd.
