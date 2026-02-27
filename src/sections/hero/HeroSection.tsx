@@ -23,6 +23,7 @@ const LOGO_SVG = (
 
 export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
   const containerRef = useRef<HTMLElement>(null);
+  const hasPlayedEntryRef = useRef(false);
 
   // HAAT: ustawienie data-h1-tier / data-desc-tier na html (CSS w hero-section.css)
   useEffect(() => {
@@ -43,10 +44,17 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
 
   // Animacja startowa — 1:1 oryginał (playEntrySequence → 50ms → startGradient): ukrycie, willChange, reflow, double rAF, .animate
   useEffect(() => {
+    if (hasPlayedEntryRef.current) return;
+    hasPlayedEntryRef.current = true;
+
     const el = containerRef.current;
     if (!el) return;
     const gradient = el.querySelector<HTMLElement>(".startup-gradient");
     const burst = el.querySelector(".burst-container");
+
+    let raf1: number | null = null;
+    let raf2: number | null = null;
+
     const start = () => {
       if (gradient) {
         gradient.style.visibility = "hidden";
@@ -56,8 +64,8 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
           "mask-image, background-image, --hero-radial-center, --hero-conic-rotate";
         void gradient.offsetWidth;
       }
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+      raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => {
           if (gradient) {
             gradient.style.transition = "";
             gradient.style.visibility = "";
@@ -69,7 +77,11 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
       });
     };
     const t = window.setTimeout(start, 50);
-    return () => window.clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      if (raf1 !== null) cancelAnimationFrame(raf1);
+      if (raf2 !== null) cancelAnimationFrame(raf2);
+    };
   }, []);
 
   // Silnik: karuzela logotypów (marquee) + trail (obrazki za myszką) — Typ B, cleanup w return
