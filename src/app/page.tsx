@@ -5,6 +5,7 @@ import { HeroSection } from "@/sections/hero/HeroSection";
 import { RevenueReachVideoSection } from "@/sections/revenue-reach-video/RevenueReachVideoSection";
 import { KineticSection } from "@/sections/kinetic/KineticSection";
 import { BookStatsSection } from "@/sections/book-stats/BookStatsSection";
+import { Blok45Section } from "@/sections/blok-4-5/Blok45Section";
 
 export async function generateMetadata({
   searchParams,
@@ -32,6 +33,7 @@ export default async function HomePage({
       <RevenueReachVideoSection />
       <BookStatsSection />
       <KineticSection />
+      <Blok45Section />
     </main>
   );
 }
