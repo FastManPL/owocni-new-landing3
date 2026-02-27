@@ -267,15 +267,6 @@ export function runKinetic(container: HTMLElement): KineticHandle {
         12.44 + I
       );
     }
-    if (b3Header) {
-      pinnedTl.fromTo(
-        b3Header,
-        { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration: 1.6, ease: "power2.out" },
-        11.2 + I
-      );
-    }
-
     // Header wave "Wg badań GEMIUS" (character-level, later phase).
     if (b3Header) {
       const b3HeaderChars = splitIntoChars(b3Header);

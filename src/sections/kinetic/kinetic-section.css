@@ -16,8 +16,8 @@
   justify-content: center;
   align-items: center;
   position: relative;
-  margin-top: -42vh;
-  margin-top: -42lvh;
+  margin-top: -56vh;
+  margin-top: -56lvh;
   overflow: visible;
   z-index: 1;
   isolation: isolate;
@@ -185,8 +185,8 @@
 
 @media (max-width: 768px) {
   #kinetic-section {
-    margin-top: -30vh;
-    margin-top: -30lvh;
+    margin-top: -40vh;
+    margin-top: -40lvh;
   }
   #kinetic-section .blob-1 { width: 100vw; height: 100vw; top: 20vh; left: 20vw; }
   #kinetic-section .blob-2 { width: 120vw; height: 120vw; top: 80vh; left: 80vw; }
