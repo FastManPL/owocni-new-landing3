@@ -553,8 +553,63 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
   // =========================
   const DRAG_MULT = [2.8, 2.1, 1.7, 1.3, 1.1, 0.8, 0.8, 0.8, 0.8, 0.8];
   const MASS_TABLE = [1.2, 1.0, 0.7, 0.7, 0.7, 0.4, 0.4, 0.4, 0.4, 0.4];
+  const EMIT_CHANCE = [0.9, 0.9, 0.9, 0.5, 0.5, 0.2, 0.2, 0.05, 0.05];
+  const WORD_POOL = [
+    "Spieszę się.",
+    "Później wrócę.",
+    "Szkoda czasu.",
+    "Muszę lecieć.",
+    "Innym razem.",
+    "Tylko oglądam.",
+    "Może kiedyś.",
+    "Nie rozumiem tego.",
+    "Kto to jest?",
+    "Jeszcze pomyślę.",
+    "Może później.",
+    "Hm?",
+    "Ej!",
+    "Serio?",
+    "Daj spokój",
+    "Osz!",
+    "Niee!",
+    "Aaaaa",
+    "Pomocy!",
+    "Weź...",
+    "Znowu?",
+    "Puszczaj!",
+  ];
   const CONFIG = { text: "wychodzą.", walkStride: 20, walkLift: 6, walkSpeed: 0.05 };
   const MANA_MAX = 375;
+
+  type FxParticle = {
+    type: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    life: number;
+    decay: number;
+    size: number;
+    growRate: number;
+    rotation: number;
+    rSpeed: number;
+    gravity: number;
+    drag: number;
+    hue: number;
+    alpha: number;
+    lineWidth: number;
+    charIndex: number;
+    offsetX: number;
+    localBaseY: number;
+    maxRise: number;
+    anchorX: number;
+    anchorY: number;
+    localX: number;
+    localY: number;
+    colorA: string;
+    colorB: string;
+    debrisColor: string;
+  };
 
   const chars: HTMLElement[] = [];
   const charStates: Array<{
@@ -589,11 +644,186 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
   let mana = 0;
   let manaActivated = false;
   let manaComplete = false;
+  let bubbleFirstPullDone = false;
+  let lastTriggerTime = 0;
   let manaContainer = container.querySelector<HTMLElement>("#blok-4-5-manaContainer");
   let manaBar = container.querySelector<HTMLElement>("#blok-4-5-manaBar");
   let burstCanvas = container.querySelector<HTMLCanvasElement>("#blok-4-5-burstCanvas");
   let burstCtx = burstCanvas?.getContext("2d") ?? null;
   let morphGhost = container.querySelector<HTMLElement>("#blok-4-5-morphGhost");
+  const sparksCanvas = container.querySelector<HTMLCanvasElement>("#blok-4-5-sparksCanvas");
+  const sparksCtx = sparksCanvas?.getContext("2d") ?? null;
+
+  const bubbles = {
+    b1: null as HTMLDivElement | null,
+    b2: null as HTMLDivElement | null,
+    b3: null as HTMLDivElement | null,
+  };
+  const bubbleTypes: Record<"b1" | "b2" | "b3", "speech" | "thought"> = { b1: "speech", b2: "thought", b3: "speech" };
+  const activeTargets: Record<"b1" | "b2" | "b3", number | null> = { b1: null, b2: null, b3: null };
+  let activeBubbleCount = 0;
+  let lastUsedWords: string[] = [];
+  let smokeCanvas: HTMLCanvasElement | null = null;
+  let smokeCtx: CanvasRenderingContext2D | null = null;
+  let iStarCanvas = container.querySelector<HTMLCanvasElement>("#blok-4-5-iHeatCanvas");
+  let iStarCtx = iStarCanvas?.getContext("2d") ?? null;
+  let iStarWrapper = container.querySelector<HTMLElement>("#blok-4-5-iHeatWrapper");
+  const STAR_CANVAS_SIZE = 800;
+  let starsAnimating = false;
+
+  const SPRITES = {
+    smoke: null as HTMLCanvasElement | null,
+    star: null as HTMLCanvasElement | null,
+    fire: null as HTMLCanvasElement | null,
+  };
+  const POOL_SIZE = 400;
+  const POOL: FxParticle[] = [];
+  let poolActive = 0;
+  const fireQueue: FxParticle[] = new Array(64);
+  let fireCount = 0;
+  const canvasOffsetX = 100;
+  const canvasOffsetY = 50;
+
+  const initSpritesAndPool = () => {
+    const sm = document.createElement("canvas");
+    sm.width = 64;
+    sm.height = 64;
+    const sCtx = sm.getContext("2d");
+    if (sCtx) {
+      const grad = sCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, "hsla(40, 15%, 55%, 0.5)");
+      grad.addColorStop(0.5, "hsla(40, 10%, 65%, 0.25)");
+      grad.addColorStop(1, "transparent");
+      sCtx.fillStyle = grad;
+      sCtx.fillRect(0, 0, 64, 64);
+    }
+    SPRITES.smoke = sm;
+
+    const st = document.createElement("canvas");
+    st.width = 32;
+    st.height = 32;
+    const stCtx = st.getContext("2d");
+    if (stCtx) {
+      stCtx.fillStyle = "#fec708";
+      stCtx.shadowColor = "#fec708";
+      stCtx.shadowBlur = 8;
+      let rot = (Math.PI / 2) * 3;
+      const step = Math.PI / 5;
+      stCtx.beginPath();
+      stCtx.moveTo(16, 2);
+      for (let i = 0; i < 5; i++) {
+        stCtx.lineTo(16 + Math.cos(rot) * 14, 16 + Math.sin(rot) * 14);
+        rot += step;
+        stCtx.lineTo(16 + Math.cos(rot) * 5.6, 16 + Math.sin(rot) * 5.6);
+        rot += step;
+      }
+      stCtx.closePath();
+      stCtx.fill();
+    }
+    SPRITES.star = st;
+
+    const fi = document.createElement("canvas");
+    fi.width = 64;
+    fi.height = 64;
+    const fCtx = fi.getContext("2d");
+    if (fCtx) {
+      const fGrad = fCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      fGrad.addColorStop(0, "#fff");
+      fGrad.addColorStop(0.3, "#ffaa44");
+      fGrad.addColorStop(1, "rgba(224, 88, 27, 0)");
+      fCtx.fillStyle = fGrad;
+      fCtx.fillRect(0, 0, 64, 64);
+    }
+    SPRITES.fire = fi;
+
+    for (let i = 0; i < POOL_SIZE; i++) {
+      POOL[i] = {
+        type: 0, x: 0, y: 0, vx: 0, vy: 0, life: 0, decay: 0, size: 0, growRate: 0, rotation: 0, rSpeed: 0, gravity: 0, drag: 1,
+        hue: 0, alpha: 0, lineWidth: 0, charIndex: -1, offsetX: 0, localBaseY: 0, maxRise: 0, anchorX: 0, anchorY: 0, localX: 0, localY: 0,
+        colorA: "", colorB: "", debrisColor: "",
+      };
+    }
+  };
+
+  const spawnParticle = (type: number, x: number, y: number, opts: { idx?: number; by?: number; offsetX?: number }) => {
+    if (poolActive >= POOL_SIZE) return null;
+    const p = POOL[poolActive++];
+    if (!p) return null;
+    const fontScale = chars[0] ? parseFloat(getComputedStyle(chars[0]).fontSize) / 40 : 1;
+    p.type = type;
+    p.x = x;
+    p.y = y;
+    p.life = 1.0;
+    p.vx = 0;
+    p.vy = 0;
+    p.gravity = 0;
+    p.drag = 1;
+    p.rotation = 0;
+    p.rSpeed = 0;
+    p.size = 0;
+    p.growRate = 0;
+    p.charIndex = -1;
+    p.offsetX = 0;
+    p.localBaseY = 0;
+    p.maxRise = 0;
+    p.anchorX = 0;
+    p.anchorY = 0;
+    p.localX = 0;
+    p.localY = 0;
+
+    if (type === 0) {
+      p.charIndex = opts.idx ?? -1;
+      p.localBaseY = opts.by ?? 0;
+      p.maxRise = 15 + Math.random() * 5;
+      p.offsetX = (Math.random() - 0.5) * 15 * fontScale;
+      p.vy = -0.2 - Math.random() * 0.3;
+      p.drag = 0.96;
+      p.decay = 0.0077 + Math.random() * 0.004;
+      p.size = (5 + Math.random() * 4) * fontScale;
+      p.growRate = 0.2 * fontScale;
+      p.rotation = Math.random() * Math.PI * 2;
+      p.rSpeed = (Math.random() - 0.5) * 0.01;
+      p.alpha = 0.4;
+    } else if (type === 4) {
+      p.vx = (Math.random() - 0.5) * 12;
+      p.vy = (Math.random() - 0.5) * 12;
+      p.gravity = 0.15;
+      p.decay = Math.random() * 0.012 + 0.008;
+      p.size = Math.random() * 8 + 5;
+      p.rotation = Math.random() * Math.PI * 2;
+      p.rSpeed = (Math.random() - 0.5) * 0.2;
+    } else if (type === 5) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 3;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed - 1;
+      p.gravity = 0.15;
+      p.drag = 0.95;
+      p.decay = 0.02 + Math.random() * 0.02;
+      p.size = (2 + Math.random() * 4) * fontScale;
+      p.charIndex = 0;
+      p.anchorX = opts.offsetX ?? 0;
+    } else {
+      const angle = ((15 + Math.random() * 20) * Math.PI) / 180;
+      const speed = (type === 1 ? 4 + Math.random() * 5 : 6 + Math.random() * 7.5) * fontScale;
+      p.vx = -Math.cos(angle) * speed;
+      p.vy = -Math.sin(angle) * speed * 0.8;
+      p.gravity = (type === 1 ? 0.15 : 0.2) * fontScale;
+      p.decay = type === 1 ? 0.02 + Math.random() * 0.02 : 0.015 + Math.random() * 0.02;
+      p.size = (type === 1 ? 1 + Math.random() * 1.5 : (2 + Math.random() * 2) * 1.3) * fontScale;
+      p.hue = type === 1 ? 30 + Math.random() * 30 : 60 + Math.random() * 60;
+      p.lineWidth = (1 + Math.random() * 1.5) * fontScale;
+      p.rSpeed = type === 2 ? (Math.random() - 0.5) * 0.25 : 0;
+      p.rotation = type === 2 ? Math.random() * Math.PI * 2 : 0;
+      if (type === 1) {
+        p.colorA = "hsla(" + p.hue + ", 100%, 60%, 1)";
+        p.colorB = "hsla(" + p.hue + ", 100%, 50%, 0)";
+      } else {
+        p.debrisColor = "rgb(" + p.hue + "," + p.hue + "," + p.hue + ")";
+      }
+    }
+    return p;
+  };
 
   const walkContainer = container.querySelector<HTMLElement>("#blok-4-5-walkingContainer");
   if (walkContainer) {
@@ -622,8 +852,397 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
       chars.forEach((c, i) => {
         if (charStates[i]) charStates[i].baseOffsetLeft = c.offsetLeft;
       });
+      cacheBaseMetrics();
     });
   }
+
+  const frameCache = {
+    containerPageLeft: 0,
+    containerPageTop: 0,
+    anchorPageBottom: 0,
+    charOffsetTop: 0,
+    charOffsetHeight: 0,
+    charOffsetWidths: [] as number[],
+    containerLeft: 0,
+    containerTop: 0,
+    containerTransformX: 0,
+    anchorBottom: 0,
+    firstLeft: 0,
+    firstBottom: 0,
+    firstRight: 0,
+    cachedFloorOffset: -16,
+    valid: false,
+  };
+
+  const cacheBaseMetrics = () => {
+    if (!walkContainer) return;
+    const cr = walkContainer.getBoundingClientRect();
+    frameCache.containerPageLeft = cr.left + window.scrollX;
+    frameCache.containerPageTop = cr.top + window.scrollY;
+    const anchor = container.querySelector<HTMLElement>("#blok-4-5-anchorChar");
+    if (anchor) {
+      const ar = anchor.getBoundingClientRect();
+      frameCache.anchorPageBottom = ar.bottom + window.scrollY;
+    }
+    if (chars[0]) {
+      frameCache.charOffsetTop = chars[0].offsetTop;
+      frameCache.charOffsetHeight = chars[0].offsetHeight;
+      const fs = parseFloat(getComputedStyle(chars[0]).fontSize);
+      frameCache.cachedFloorOffset = -0.4 * fs;
+    }
+    frameCache.charOffsetWidths = chars.map((c) => c.offsetWidth);
+  };
+
+  const updateFrameCache = () => {
+    if (!walkContainer) {
+      frameCache.valid = false;
+      return;
+    }
+    const sy = window.scrollY;
+    frameCache.containerTransformX = wordOffsetX * visualBlend;
+    frameCache.containerLeft = frameCache.containerPageLeft - window.scrollX;
+    frameCache.containerTop = frameCache.containerPageTop - sy;
+    frameCache.anchorBottom = frameCache.anchorPageBottom - sy;
+    if (chars[0] && charStates[0]) {
+      const fLeft = frameCache.containerLeft + frameCache.containerTransformX + charStates[0].baseOffsetLeft + charStates[0].finalX;
+      const fTop = frameCache.containerTop + frameCache.charOffsetTop + charStates[0].finalY;
+      frameCache.firstLeft = fLeft;
+      frameCache.firstBottom = fTop + frameCache.charOffsetHeight;
+      frameCache.firstRight = fLeft + (frameCache.charOffsetWidths[0] || chars[0].offsetWidth);
+    }
+    frameCache.valid = true;
+  };
+
+  const initBubbles = () => {
+    const layer = container.querySelector<HTMLElement>("#blok-4-5-bubble-layer");
+    if (!layer) return;
+    layer.innerHTML = "";
+    (["b1", "b2", "b3"] as const).forEach((k) => {
+      const b = document.createElement("div");
+      b.className = bubbleTypes[k] === "thought" ? "thought-bubble" : "speech-bubble";
+      layer.appendChild(b);
+      bubbles[k] = b;
+    });
+  };
+
+  const getUniqueWord = () => {
+    let available = WORD_POOL.filter((w) => !lastUsedWords.includes(w));
+    if (!available.length) {
+      lastUsedWords = [];
+      available = [...WORD_POOL];
+    }
+    const word = available[Math.floor(Math.random() * available.length)] ?? WORD_POOL[0];
+    lastUsedWords.push(word);
+    if (lastUsedWords.length > 10) lastUsedWords.shift();
+    return word;
+  };
+
+  const triggerSpeechSequence = () => {
+    const freeSlots = (["b1", "b2", "b3"] as const).filter((k) => activeTargets[k] === null);
+    if (!freeSlots.length) return;
+    const rand = Math.random();
+    const wantedCount = rand < 0.5 ? 2 : 3;
+    const count = Math.min(wantedCount, freeSlots.length);
+    if (!count) return;
+    const patterns3 = [
+      [0, 3, 6],
+      [1, 4, 7],
+      [0, 4, 8],
+      [2, 5, 8],
+    ];
+    const allIndices =
+      count === 3
+        ? patterns3[Math.floor(Math.random() * 4)]!
+        : count === 2
+        ? [0, 4].sort(() => Math.random() - 0.5)
+        : [Math.floor(Math.random() * 6)];
+    const indices = allIndices.slice(0, count);
+    const scales = [0.85, 1.0, 1.15].sort(() => Math.random() - 0.5);
+    indices.forEach((charIndex, i) => {
+      const key = freeSlots[i];
+      if (!key) return;
+      const bubble = bubbles[key];
+      if (!bubble) return;
+      activeTargets[key] = charIndex;
+      const word = getUniqueWord();
+      const startDelay = i === 0 ? 0 : Math.random() * 300;
+      const tid1 = window.setTimeout(() => {
+        bubble.textContent = word;
+        bubble.style.fontSize = (scales[i] || 1) + "em";
+        bubble.classList.add("visible");
+        activeBubbleCount++;
+      }, startDelay);
+      cleanups.push(() => clearTimeout(tid1));
+      const lifeTime = 1500 + Math.random() * 500;
+      const tid2 = window.setTimeout(() => {
+        bubble.classList.remove("visible");
+        activeTargets[key] = null;
+        activeBubbleCount = Math.max(0, activeBubbleCount - 1);
+      }, startDelay + lifeTime);
+      cleanups.push(() => clearTimeout(tid2));
+    });
+  };
+
+  const updateBubblesPosition = () => {
+    if (activeBubbleCount === 0 || !frameCache.valid) return;
+    (["b1", "b2", "b3"] as const).forEach((key) => {
+      const idx = activeTargets[key];
+      const bubble = bubbles[key];
+      if (idx === null || !bubble || !chars[idx] || !charStates[idx]) return;
+      const s = charStates[idx];
+      const x =
+        frameCache.containerLeft +
+        frameCache.containerTransformX +
+        s.baseOffsetLeft +
+        s.finalX +
+        (frameCache.charOffsetWidths[idx] || chars[idx].offsetWidth) / 2;
+      const yOff = bubbleTypes[key] === "thought" ? -55 : -25;
+      const y = frameCache.containerTop + frameCache.charOffsetTop + s.finalY + yOff;
+      const visScale = bubble.classList.contains("visible") ? "scale(1) translateY(0)" : "scale(0.8) translateY(5px)";
+      bubble.style.transform = "translate3d(" + x + "px, " + y + "px, 0) translateX(-50%) " + visScale;
+    });
+  };
+
+  const initCanvases = () => {
+    if (!walkContainer) return;
+    smokeCanvas = document.createElement("canvas");
+    smokeCanvas.id = "blok-4-5-particleCanvas";
+    walkContainer.insertBefore(smokeCanvas, walkContainer.firstChild);
+    smokeCtx = smokeCanvas.getContext("2d");
+    const resizeCanvases = () => {
+      if (smokeCanvas) {
+        smokeCanvas.width = window.innerWidth + 200;
+        smokeCanvas.height = 150;
+      }
+      if (sparksCanvas) {
+        sparksCanvas.width = window.innerWidth;
+        sparksCanvas.height = window.innerHeight;
+      }
+      cacheBaseMetrics();
+      Object.values(bubbles).forEach((b) => b?.classList.remove("visible"));
+      (["b1", "b2", "b3"] as const).forEach((k) => (activeTargets[k] = null));
+      activeBubbleCount = 0;
+    };
+    resizeCanvases();
+    window.addEventListener("resize", resizeCanvases);
+    cleanups.push(() => window.removeEventListener("resize", resizeCanvases));
+    cleanups.push(() => {
+      if (smokeCanvas?.parentElement) smokeCanvas.parentElement.removeChild(smokeCanvas);
+    });
+  };
+
+  const updateStarCanvasPosition = () => {
+    const anchor = container.querySelector<HTMLElement>("#blok-4-5-anchorChar");
+    if (!anchor || !iStarWrapper || !iStarCanvas) return;
+    const rect = anchor.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height * 0.25;
+    iStarWrapper.style.width = STAR_CANVAS_SIZE + "px";
+    iStarWrapper.style.height = STAR_CANVAS_SIZE + "px";
+    iStarWrapper.style.left = cx - STAR_CANVAS_SIZE / 2 + "px";
+    iStarWrapper.style.top = cy - STAR_CANVAS_SIZE / 2 + "px";
+    iStarCanvas.width = STAR_CANVAS_SIZE;
+    iStarCanvas.height = STAR_CANVAS_SIZE;
+  };
+
+  const animateStars = () => {
+    if (!iStarCtx) {
+      starsAnimating = false;
+      return;
+    }
+    let hasStars = false;
+    iStarCtx.clearRect(0, 0, STAR_CANVAS_SIZE, STAR_CANVAS_SIZE);
+    const starNow = Date.now();
+    for (let i = poolActive - 1; i >= 0; i--) {
+      const p = POOL[i];
+      if (!p || p.type !== 4) continue;
+      hasStars = true;
+      p.vy += p.gravity;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotation += p.rSpeed;
+      p.life -= p.decay;
+      if (p.life <= 0) {
+        poolActive--;
+        const tmp = POOL[i];
+        POOL[i] = POOL[poolActive]!;
+        POOL[poolActive] = tmp!;
+        continue;
+      }
+      const twinkle = 0.8 + Math.sin(starNow * 0.02 + p.rotation) * 0.2;
+      iStarCtx.save();
+      iStarCtx.translate(p.x, p.y);
+      iStarCtx.rotate(p.rotation);
+      iStarCtx.globalAlpha = p.life * twinkle;
+      const scale = p.size / 16;
+      iStarCtx.scale(scale, scale);
+      if (SPRITES.star) iStarCtx.drawImage(SPRITES.star, -16, -16);
+      iStarCtx.restore();
+    }
+    if (hasStars) requestAnimationFrame(animateStars);
+    else starsAnimating = false;
+  };
+
+  const spawnStars = () => {
+    updateStarCanvasPosition();
+    const cx = STAR_CANVAS_SIZE / 2;
+    const burst = (n: number) => {
+      for (let i = 0; i < n; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.sqrt(Math.random()) * 15;
+        spawnParticle(4, cx + Math.cos(angle) * r, cx + Math.sin(angle) * r, {});
+      }
+      if (!starsAnimating) {
+        starsAnimating = true;
+        requestAnimationFrame(animateStars);
+      }
+    };
+    const tid1 = window.setTimeout(() => burst(25), 150);
+    const tid2 = window.setTimeout(() => burst(8), 350);
+    cleanups.push(() => clearTimeout(tid1));
+    cleanups.push(() => clearTimeout(tid2));
+  };
+
+  const processParticles = () => {
+    if (!frameCache.valid) return;
+    const isActiveScrollUp = scrollUpVelocity < -2;
+    if (isActiveScrollUp && hasStarted && !isDead && chars.length > 0) {
+      const mass = charStates[0]?.mass || 1;
+      if (Math.random() < pullStrength * 3.5 * mass * 1.15 && frameCache.valid) {
+        const type = Math.random() < 0.15 ? 1 : 2;
+        if (type === 1 || Math.random() < 0.575) {
+          spawnParticle(type, frameCache.firstLeft, frameCache.anchorBottom + frameCache.cachedFloorOffset, {});
+        }
+      }
+    }
+    if (currentMode === "pull" && pullStrength > 0.15 && hasStarted && !isDead && chars.length > 0 && frameCache.valid) {
+      const count = 2 + Math.floor(Math.random() * 3);
+      const charWidth = frameCache.firstRight - frameCache.firstLeft;
+      for (let i = 0; i < count; i++) {
+        const offsetX = Math.random() * (charWidth / 3);
+        spawnParticle(5, frameCache.firstLeft + offsetX, frameCache.firstBottom, { offsetX });
+      }
+    }
+    if (currentMode === "pull" && pullStrength > 0.1 && hasStarted && !isDead && chars.length > 0) {
+      const localFloorY = frameCache.charOffsetTop + frameCache.charOffsetHeight;
+      for (let ci = 0; ci < chars.length; ci++) {
+        if (Math.random() > EMIT_CHANCE[ci]!) continue;
+        const s = charStates[ci] as typeof charStates[number] & { prevVaporX?: number };
+        const lx = s.baseOffsetLeft + s.finalX + (frameCache.charOffsetWidths[ci] || 0) / 2;
+        if (s.prevVaporX === undefined) s.prevVaporX = lx;
+        const dx = lx - s.prevVaporX;
+        if (Math.abs(dx) > 2) {
+          const steps = Math.min(Math.ceil(Math.abs(dx) / 10), 20);
+          for (let k = 0; k <= steps; k++) {
+            spawnParticle(0, s.prevVaporX + dx * (k / steps) + canvasOffsetX, localFloorY + canvasOffsetY, { idx: ci, by: localFloorY });
+          }
+        }
+        s.prevVaporX = lx;
+      }
+    }
+    if (poolActive === 0) return;
+    if (smokeCtx && smokeCanvas) smokeCtx.clearRect(0, 0, smokeCanvas.width, smokeCanvas.height);
+    if (sparksCtx && sparksCanvas) {
+      sparksCtx.clearRect(0, 0, sparksCanvas.width, sparksCanvas.height);
+      sparksCtx.lineCap = "round";
+    }
+    fireCount = 0;
+    for (let i = poolActive - 1; i >= 0; i--) {
+      const p = POOL[i];
+      if (!p || p.type === 4) continue;
+      let dead = false;
+      if (p.type === 0) {
+        p.y += p.vy;
+        p.vy *= p.drag;
+        const minY = p.localBaseY + canvasOffsetY - p.maxRise;
+        if (p.y < minY) {
+          p.y = minY;
+          p.vy = 0;
+        }
+        p.size = p.life > 0.5 ? p.size + p.growRate : p.size * 0.96;
+        p.rotation += p.rSpeed;
+        if (!smokeCanvas || p.life <= 0 || p.size < 1 || p.x < 0 || p.x > smokeCanvas.width) dead = true;
+      } else if (p.type === 5) {
+        p.localX += p.vx;
+        p.localY += p.vy;
+        p.vy += p.gravity;
+        p.vx *= p.drag;
+        p.vy *= p.drag;
+        p.size *= 0.96;
+        if (p.life <= 0 || p.size < 0.5) dead = true;
+      } else {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += p.gravity;
+        p.vx *= 0.99;
+        p.vy *= 0.99;
+        if (p.type === 2) p.rotation += p.rSpeed;
+        if (p.life <= 0 || p.y > window.innerHeight + 50 || p.x < -100) dead = true;
+      }
+      p.life -= p.decay;
+      if (dead) {
+        poolActive--;
+        const tmp = POOL[i];
+        POOL[i] = POOL[poolActive]!;
+        POOL[poolActive] = tmp!;
+        continue;
+      }
+      if (p.type === 0 && smokeCtx && SPRITES.smoke) {
+        const scale = p.size / 32;
+        const cos = Math.cos(p.rotation) * scale;
+        const sin = Math.sin(p.rotation) * scale;
+        smokeCtx.globalAlpha = p.life * p.alpha;
+        smokeCtx.setTransform(cos, sin, -sin * 0.7, cos * 0.7, p.x, p.y);
+        smokeCtx.drawImage(SPRITES.smoke, -32, -32);
+      } else if (p.type === 1 && sparksCtx) {
+        sparksCtx.globalAlpha = p.life;
+        const grad = sparksCtx.createLinearGradient(p.x, p.y, p.x - p.vx * 2, p.y - p.vy * 2);
+        grad.addColorStop(0, p.colorA);
+        grad.addColorStop(1, p.colorB);
+        sparksCtx.strokeStyle = grad;
+        sparksCtx.lineWidth = p.lineWidth;
+        sparksCtx.beginPath();
+        sparksCtx.moveTo(p.x, p.y);
+        sparksCtx.lineTo(p.x - p.vx * 2, p.y - p.vy * 2);
+        sparksCtx.stroke();
+      } else if (p.type === 2 && sparksCtx) {
+        sparksCtx.globalAlpha = p.life;
+        const cos = Math.cos(p.rotation);
+        const sin = Math.sin(p.rotation);
+        sparksCtx.setTransform(cos, sin, -sin, cos, p.x, p.y);
+        sparksCtx.fillStyle = p.debrisColor;
+        sparksCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else if (p.type === 5) {
+        fireQueue[fireCount++] = p;
+      }
+    }
+    if (smokeCtx) smokeCtx.setTransform(1, 0, 0, 1, 0, 0);
+    if (sparksCtx) sparksCtx.setTransform(1, 0, 0, 1, 0, 0);
+    if (fireCount > 0 && frameCache.valid && sparksCtx && SPRITES.fire) {
+      sparksCtx.globalCompositeOperation = "lighter";
+      for (let fi = 0; fi < fireCount; fi++) {
+        const p = fireQueue[fi];
+        if (!p) continue;
+        const screenX = frameCache.firstLeft + p.anchorX + p.localX;
+        const screenY = frameCache.firstBottom + p.anchorY + p.localY;
+        sparksCtx.globalAlpha = p.life;
+        const scale = p.size / 32;
+        sparksCtx.setTransform(scale, 0, 0, scale, screenX, screenY);
+        sparksCtx.drawImage(SPRITES.fire, -32, -32);
+      }
+      sparksCtx.setTransform(1, 0, 0, 1, 0, 0);
+      sparksCtx.globalCompositeOperation = "source-over";
+    }
+    if (smokeCtx) smokeCtx.globalAlpha = 1;
+    if (sparksCtx) sparksCtx.globalAlpha = 1;
+  };
+
+  initSpritesAndPool();
+  initBubbles();
+  initCanvases();
+  updateStarCanvasPosition();
+  window.addEventListener("resize", updateStarCanvasPosition);
+  cleanups.push(() => window.removeEventListener("resize", updateStarCanvasPosition));
 
   const textSection = container.querySelector<HTMLElement>("#blok-4-5-voidSectionWrapper");
   if (textSection && manaContainer) {
@@ -647,7 +1266,10 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
 
   const onManaComplete = () => {
     manaComplete = true;
+    if (manaContainer) manaContainer.style.width = manaContainer.offsetWidth + "px";
     manaBar?.classList.add("complete");
+    Object.values(bubbles).forEach((b) => b?.classList.remove("visible"));
+    activeBubbleCount = 0;
     const anchor = container.querySelector<HTMLElement>("#blok-4-5-anchorChar");
     anchor?.classList.add("mana-active");
     isReturning = true;
@@ -790,6 +1412,7 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
   };
 
   const transformToZostaja = () => {
+    spawnStars();
     const newText = "zostają!";
     const targetChars = newText.split("");
     const wc = container.querySelector<HTMLElement>("#blok-4-5-walkingContainer");
@@ -864,6 +1487,8 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
       isDead = true;
       gsap.ticker.remove(mainLoop);
       mainLoopTicking = false;
+      if (sparksCanvas) sparksCanvas.width = sparksCanvas.height = 1;
+      if (smokeCanvas) smokeCanvas.width = smokeCanvas.height = 1;
       killMana();
       const tid2 = setTimeout(showPopupWithBurst, 200);
       cleanups.push(() => clearTimeout(tid2));
@@ -896,8 +1521,12 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
       killMana();
       gsap.ticker.remove(mainLoop);
       mainLoopTicking = false;
+      if (sparksCanvas) sparksCanvas.width = sparksCanvas.height = 1;
+      if (smokeCanvas) smokeCanvas.width = smokeCanvas.height = 1;
       return;
     }
+
+    updateFrameCache();
 
     if (isScrollingDown) {
       pullStrength *= 0.8;
@@ -926,6 +1555,7 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
         walkTime = Math.max(0, wordOffsetX / CONFIG.walkStride);
         elasticActive = true;
         elasticTime = 0;
+        if (!bubbleFirstPullDone) bubbleFirstPullDone = true;
       }
     }
 
@@ -942,6 +1572,9 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
         isReturning = false;
         gsap.ticker.remove(mainLoop);
         mainLoopTicking = false;
+        poolActive = 0;
+        if (smokeCtx && smokeCanvas) smokeCtx.clearRect(0, 0, smokeCanvas.width, smokeCanvas.height);
+        if (sparksCtx && sparksCanvas) sparksCtx.clearRect(0, 0, sparksCanvas.width, sparksCanvas.height);
         chars.forEach((c) => {
           c.style.transform = "none";
         });
@@ -1012,13 +1645,22 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
       c.style.transform =
         "translate3d(" + qx + "px," + qy + "px,0) rotateY(" + qry + "deg) rotateZ(" + qrz + "deg) skewX(" + qsk + "deg)";
     }
+    processParticles();
     updateMana();
+    if (bubbleFirstPullDone && scrollUpVelocity < -1 && !manaComplete && activeBubbleCount === 0 && Date.now() - lastTriggerTime > 800) {
+      triggerSpeechSequence();
+      lastTriggerTime = Date.now();
+    }
+    updateBubblesPosition();
   };
 
   window.addEventListener("scroll", handleScroll, { passive: true });
   cleanups.push(() => window.removeEventListener("scroll", handleScroll));
   const onResizeMain = () => {
-    // lightweight: width check only
+    cacheBaseMetrics();
+    Object.values(bubbles).forEach((b) => b?.classList.remove("visible"));
+    (["b1", "b2", "b3"] as const).forEach((k) => (activeTargets[k] = null));
+    activeBubbleCount = 0;
   };
   window.addEventListener("resize", onResizeMain);
   cleanups.push(() => window.removeEventListener("resize", onResizeMain));
