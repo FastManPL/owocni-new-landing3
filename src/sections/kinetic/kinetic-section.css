@@ -16,6 +16,8 @@
   justify-content: center;
   align-items: center;
   position: relative;
+  margin-top: -42vh;
+  margin-top: -42lvh;
   overflow: visible;
   z-index: 1;
   isolation: isolate;
@@ -183,6 +185,10 @@
 #kinetic-section .block-3-mobile { display: none; }
 
 @media (max-width: 768px) {
+  #kinetic-section {
+    margin-top: -30vh;
+    margin-top: -30lvh;
+  }
   #kinetic-section .blob-1 { width: 100vw; height: 100vw; top: 20vh; left: 20vw; }
   #kinetic-section .blob-2 { width: 120vw; height: 120vw; top: 80vh; left: 80vw; }
   #kinetic-section .blob-3 { width: 80vw; height: 80vw; top: 50vh; left: 50vw; }
