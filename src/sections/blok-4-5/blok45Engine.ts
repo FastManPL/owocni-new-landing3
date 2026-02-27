@@ -189,14 +189,18 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
       end: "bottom top",
       onEnter: () => {
         waveWrap.style.display = "";
+        gsap.set(waveWrap, { autoAlpha: 1 });
       },
       onLeave: () => {
+        gsap.set(waveWrap, { autoAlpha: 0 });
         waveWrap.style.display = "none";
       },
       onEnterBack: () => {
         waveWrap.style.display = "";
+        gsap.set(waveWrap, { autoAlpha: 1 });
       },
       onLeaveBack: () => {
+        gsap.set(waveWrap, { autoAlpha: 0 });
         waveWrap.style.display = "none";
       },
     });

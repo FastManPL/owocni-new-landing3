@@ -537,3 +537,6 @@
 #blok-4-5-section .overlay.content-reveal .popup .content > *:nth-child(5) { animation-delay: 200ms; }
 @keyframes blok-4-5-popupContentIn { to { opacity: 1; transform: translateY(0); } }
 #blok-4-5-section .overlay:not(.content-reveal) .popup .content > * { opacity: 0; transform: translateY(16px); animation: none; }
+#blok-4-5-section .popup-wrapper .close { position: absolute; top: 0; right: 0; width: 48px; height: 48px; border: none; background: #ffc602; color: #1a1610; font-size: 18px; font-weight: 700; cursor: pointer; display: grid; place-items: center; z-index: 100; border-radius: 0 26px 0 14px; transition: background .2s ease; }
+@media (hover: hover) and (pointer: fine) { #blok-4-5-section .popup-wrapper .close:hover { background: #e6b200; } }
+@media (max-width: 639px) { #blok-4-5-section .popup-wrapper .close { width: 40px; height: 40px; border-radius: 50%; top: -20px; right: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); font-size: 16px; } }
