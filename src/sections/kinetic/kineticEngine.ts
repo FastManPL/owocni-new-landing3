@@ -72,6 +72,8 @@ export function runKinetic(container: HTMLElement): KineticHandle {
   const I = KINETIC_U * (svh / SCROLL_KINETIC);
   const TOTAL_U = I + KINETIC_U;
   const KINETIC_SNAPS = [I + 3.5, I + 9.5, I + 23.0].map((u) => u / TOTAL_U);
+  const FINAL_SNAP = KINETIC_SNAPS[KINETIC_SNAPS.length - 1];
+  const FINAL_SNAP_LOCK_EPS = 0.01;
   const BRIDGE_END_PROGRESS = (I + 3.5) / TOTAL_U;
   const GRAB_START = BRIDGE_END_PROGRESS * 0.82;
   const HYS = Math.min(0.03, BRIDGE_END_PROGRESS * 0.25);
@@ -144,6 +146,8 @@ export function runKinetic(container: HTMLElement): KineticHandle {
           // P2.3: Snap-Lock on touch resize.
           if (mobileResizeLock) return self.progress;
           const p = self.progress;
+          // End lock: once user reaches the final zone, prevent fallback to earlier snaps.
+          if (p >= FINAL_SNAP - FINAL_SNAP_LOCK_EPS) return FINAL_SNAP;
           const dir = self.direction || 1;
           if (p < GRAB_START) return p;
           if (p < BRIDGE_END_PROGRESS + HYS) {
