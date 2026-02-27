@@ -164,6 +164,10 @@
   line-height: 1.2;
   color: var(--text-color);
 }
+#kinetic-section .anim-char {
+  display: inline-block;
+  will-change: transform, opacity;
+}
 #kinetic-section .bold-line {
   font-weight: 700;
   color: var(--highlight-color);

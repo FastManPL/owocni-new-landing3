@@ -168,20 +168,76 @@ export function runKinetic(container: HTMLElement): KineticHandle {
   // Timeline durations are defined by migrated source blocks below.
 
   const splitIntoChars = (element: HTMLElement) => {
-    const text = element.textContent || "";
-    element.textContent = "";
-    const frag = document.createDocumentFragment();
-    const out: HTMLElement[] = [];
-    for (const ch of text) {
-      const span = document.createElement("span");
-      span.className = "blur-char";
-      span.style.display = "inline-block";
-      span.textContent = ch;
-      frag.appendChild(span);
-      out.push(span);
-    }
-    element.appendChild(frag);
-    return out;
+    const nodes = Array.from(element.childNodes);
+    element.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+    let globalIndex = 0;
+
+    nodes.forEach((node) => {
+      const isText = node.nodeType === Node.TEXT_NODE;
+      const target = isText ? fragment : node.cloneNode(false);
+      const textContent = node.textContent ?? "";
+      [...textContent].forEach((char) => {
+        const span = document.createElement("span");
+        span.className = "anim-char";
+        span.textContent = char === " " ? "\u00A0" : char;
+        span.dataset.index = String(globalIndex++);
+        target.appendChild(span);
+      });
+      if (!isText) fragment.appendChild(target);
+    });
+
+    element.appendChild(fragment);
+    return element.querySelectorAll<HTMLElement>(".anim-char");
+  };
+
+  const animateBlock1_ColorWave = (
+    tl: gsap.core.Timeline,
+    b1: HTMLElement,
+    b1Lines: NodeListOf<HTMLElement>,
+    b1Bold: NodeListOf<HTMLElement>
+  ) => {
+    const allLineChars: Array<{ line: HTMLElement; chars: NodeListOf<HTMLElement>; isBold: boolean }> = [];
+
+    [...b1Lines, ...b1Bold].forEach((line) => {
+      const chars = splitIntoChars(line);
+      allLineChars.push({
+        line,
+        chars,
+        isBold: line.classList.contains("bold-line"),
+      });
+    });
+
+    allLineChars.forEach(({ chars }) => {
+      gsap.set(chars, { color: "#9dd2f6" });
+    });
+
+    tl.set(b1, { autoAlpha: 1 });
+
+    const normalLines = allLineChars.filter((l) => !l.isBold).map((l) => l.line);
+    const boldLines = allLineChars.filter((l) => l.isBold).map((l) => l.line);
+    const allLines = [...normalLines, ...boldLines];
+
+    tl.addLabel("colorWaveStart");
+    tl.fromTo(
+      allLines,
+      { y: 60, opacity: 0, scale: 0.95 },
+      { y: 0, opacity: 1, scale: 1, duration: 3, stagger: 0.5, ease: "expo.out" }
+    );
+
+    allLineChars.forEach(({ chars }, index) => {
+      const lineStartTime = index * 0.5;
+      tl.to(
+        chars,
+        {
+          color: "#141414",
+          duration: 2.8,
+          stagger: 0.02,
+          ease: "power2.out",
+        },
+        "colorWaveStart+=" + (lineStartTime + 0.1)
+      );
+    });
   };
 
   // Batch 2: core narrative sequence Block1 -> Block2 -> Block3.
@@ -209,13 +265,7 @@ export function runKinetic(container: HTMLElement): KineticHandle {
 
     // Bridge spacer then Block1 color-wave rhythm.
     pinnedTl.to({}, { duration: I }, 0);
-    pinnedTl.set(b1, { autoAlpha: 1 }, I);
-    pinnedTl.fromTo(
-      [...b1Lines, ...b1Bold],
-      { color: "#9bbad7" },
-      { color: "#141414", duration: 6.4, ease: "power2.out", stagger: 0.2 },
-      I + 0.25
-    );
+    animateBlock1_ColorWave(pinnedTl, b1, b1Lines, b1Bold);
 
     const block2StartPosition = pinnedTl.duration();
     pinnedTl.addLabel("block2Start", block2StartPosition);
