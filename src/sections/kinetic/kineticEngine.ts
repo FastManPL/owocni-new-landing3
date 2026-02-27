@@ -152,7 +152,12 @@ export function runKinetic(container: HTMLElement): KineticHandle {
           if (p < GRAB_START) return p;
           // Keep bridge range free-flowing to avoid backward snap-backs near Gemius panel.
           if (p < BRIDGE_END_PROGRESS + HYS) return p;
-          return snapDir(value, dir);
+          // In the Gemius -> end segment keep free progress to avoid replay loops.
+          if (p >= BRIDGE_END_PROGRESS) return p;
+          const candidate = snapDir(value, dir);
+          if (dir > 0 && candidate < p) return p;
+          if (dir < 0 && candidate > p) return p;
+          return candidate;
         },
         directional: true,
         inertia: false,

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useGSAP } from "@gsap/react";
 import { runBlok45 } from "./blok45Engine";
 import "./blok45-section.css";
@@ -8,6 +9,11 @@ import "./blok45-section.css";
 export function Blok45Section() {
   const sectionRef = useRef<HTMLElement>(null);
   const waveWrapRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useGSAP(
     () => {
@@ -16,19 +22,24 @@ export function Blok45Section() {
       if (!sectionEl || !waveWrapEl) return;
       return runBlok45(sectionEl, waveWrapEl);
     },
-    { scope: sectionRef }
+    { scope: sectionRef, dependencies: [mounted] }
   );
 
   return (
     <>
-      <div id="blok-4-5-wave-wrap" ref={waveWrapRef}>
-        <svg id="blok-4-5-wave-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path className="wave-path" />
-          <path className="wave-path" />
-          <path className="wave-path" />
-          <path className="wave-path" />
-        </svg>
-      </div>
+      {mounted
+        ? createPortal(
+            <div id="blok-4-5-wave-wrap" className="blok-4-5-wave-wrap" ref={waveWrapRef}>
+              <svg id="blok-4-5-wave-svg" className="blok-4-5-wave-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path className="wave-path" />
+                <path className="wave-path" />
+                <path className="wave-path" />
+                <path className="wave-path" />
+              </svg>
+            </div>,
+            document.body
+          )
+        : null}
 
       <section id="blok-4-5-section" ref={sectionRef}>
         <canvas id="blok-4-5-sparksCanvas" />
@@ -113,7 +124,7 @@ export function Blok45Section() {
           <div className="illustration-container">
             <div className="text-above-illustration">
               <div className="blok45-intro-line1">Potencjalni klienci</div>
-              <div className="blok45-intro-line2" id="blok-4-5-ludzie-wchodza">
+                    <div className="blok45-intro-line2" id="blok-4-5-introLine2">
                 wchodzą na stronę
               </div>
               <div className="blok45-intro-line3">rozglądają się...</div>

@@ -182,26 +182,48 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
     currentTime = 0;
     isOpened = false;
     gsap.set(waveWrap, { autoAlpha: 0 });
+    waveWrap.style.display = "none";
+    const stWaveVis = ScrollTrigger.create({
+      trigger: container,
+      start: "top bottom",
+      end: "bottom top",
+      onEnter: () => {
+        waveWrap.style.display = "";
+      },
+      onLeave: () => {
+        waveWrap.style.display = "none";
+      },
+      onEnterBack: () => {
+        waveWrap.style.display = "";
+      },
+      onLeaveBack: () => {
+        waveWrap.style.display = "none";
+      },
+    });
+    gsapInstances.push(stWaveVis);
 
-    const openTarget = container.querySelector<HTMLElement>("#blok-4-5-ludzie-wchodza");
-    if (openTarget) {
-      const stWaveOpen = ScrollTrigger.create({
-        trigger: openTarget,
-        start: "top 85%",
-        onEnter: () => playOpen(),
-      });
-      gsapInstances.push(stWaveOpen);
-    }
-
-    const closeTarget = container.querySelector<HTMLElement>("#blok-4-5-voidSectionWrapper");
-    if (closeTarget) {
-      const stWaveClose = ScrollTrigger.create({
-        trigger: closeTarget,
-        start: "bottom bottom",
-        onLeaveBack: () => playClose(),
-      });
-      gsapInstances.push(stWaveClose);
-    }
+    const triggerPercent = window.innerWidth < 600 ? 75 : 70;
+    const triggerElement =
+      (window.innerWidth < 600
+        ? container.querySelector<HTMLElement>(".blok45-intro-line1")
+        : container.querySelector<HTMLElement>(".text-on-illustration-top")) || container;
+    const stWaveMain = ScrollTrigger.create({
+      trigger: triggerElement,
+      start: "bottom 100%",
+      end: "bottom " + triggerPercent + "%",
+      onUpdate: (self) => {
+        gsap.set(waveWrap, { autoAlpha: 1 });
+        currentTime = maxTime * self.progress;
+        render(currentTime);
+      },
+      onEnter: () => playOpen(),
+      onLeaveBack: () => {
+        currentTime = 0;
+        render(0);
+        gsap.set(waveWrap, { autoAlpha: 0 });
+      },
+    });
+    gsapInstances.push(stWaveMain);
 
     cleanups.push(() => {
       stopTicker();
@@ -1279,10 +1301,11 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
 
   const updateMana = () => {
     if (manaComplete) return;
-    if (currentMode === "pull" && scrollUpVelocity < -1) {
+    if ((currentMode === "pull" || pullStrength > 0.02) && scrollUpVelocity < -1) {
       if (!manaActivated) {
         manaActivated = true;
         manaContainer?.classList.add("visible");
+        manaContainer?.classList.add("in-viewport");
       }
       const vel = Math.abs(scrollUpVelocity);
       const gain = 2.0 + Math.min(vel / 25, 1.0);
@@ -1672,6 +1695,7 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
     onEnter: () => {
       hasStarted = true;
       anchorScrollY = lastScrollY;
+      manaContainer?.classList.add("in-viewport");
     },
   });
   gsapInstances.push(stWalking);
