@@ -30,8 +30,8 @@ export default async function HomePage({
     <main>
       <HeroSection headline={variant.h1} sub={variant.sub} tier={tier} />
       <RevenueReachVideoSection />
-      <KineticSection />
       <BookStatsSection />
+      <KineticSection />
     </main>
   );
 }
