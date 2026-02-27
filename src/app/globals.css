@@ -1,9 +1,9 @@
+/* C7: Lenis CSS */
+@import "lenis/dist/lenis.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* C7: Lenis CSS */
-@import "lenis/dist/lenis.css";
 
 /* Design tokens — fallback stacki (A4) */
 :root {

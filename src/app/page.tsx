@@ -3,6 +3,7 @@ import { getVariant } from "@/config/variants";
 import { autoTier } from "@/lib/autoTier";
 import { HeroSection } from "@/sections/hero/HeroSection";
 import { RevenueReachVideoSection } from "@/sections/revenue-reach-video/RevenueReachVideoSection";
+import { KineticSection } from "@/sections/kinetic/KineticSection";
 import { BookStatsSection } from "@/sections/book-stats/BookStatsSection";
 
 export async function generateMetadata({
@@ -29,6 +30,7 @@ export default async function HomePage({
     <main>
       <HeroSection headline={variant.h1} sub={variant.sub} tier={tier} />
       <RevenueReachVideoSection />
+      <KineticSection />
       <BookStatsSection />
     </main>
   );
