@@ -158,7 +158,6 @@
   opacity: 0;
   text-align: center;
 }
-#kinetic-section #kinetic-block-1 { opacity: 1; }
 
 #kinetic-section .line {
   font-size: clamp(1.4rem, 2.6vw, 2.8rem);

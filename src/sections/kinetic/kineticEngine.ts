@@ -200,7 +200,7 @@ export function runKinetic(container: HTMLElement): KineticHandle {
     const b3Lines = b3Container.querySelectorAll<HTMLElement>(".line:not(.bold-line)");
     const b3Bold = b3Container.querySelector<HTMLElement>(".line.bold-line");
 
-    gsap.set([b2, b3], { autoAlpha: 0 });
+    gsap.set([b1, b2, b3], { autoAlpha: 0 });
     pinnedTl.addLabel("start", I);
     pinnedTl.addLabel("block1", 3.5 + I);
     pinnedTl.addLabel("block2", 9.0 + I);
@@ -209,6 +209,7 @@ export function runKinetic(container: HTMLElement): KineticHandle {
 
     // Bridge spacer then Block1 color-wave rhythm.
     pinnedTl.to({}, { duration: I }, 0);
+    pinnedTl.set(b1, { autoAlpha: 1 }, I);
     pinnedTl.fromTo(
       [...b1Lines, ...b1Bold],
       { color: "#9bbad7" },

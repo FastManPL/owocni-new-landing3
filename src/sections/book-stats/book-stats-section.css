@@ -9,7 +9,6 @@
   padding: 5rem 1.25rem;
   position: relative;
   z-index: 20;
-  background-color: #f7f6f4;
   width: 100%;
 }
 @media screen and (max-width: 991px) {
