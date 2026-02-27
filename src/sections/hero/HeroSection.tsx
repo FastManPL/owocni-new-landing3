@@ -21,9 +21,12 @@ const LOGO_SVG = (
   </svg>
 );
 
+// Dev StrictMode (mount->unmount->mount) może podwójnie odpalić sekwencję wejścia.
+// W oryginale HTML choreografia uruchamia się raz na load.
+let hasPlayedHeroEntrySequence = false;
+
 export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
   const containerRef = useRef<HTMLElement>(null);
-  const hasPlayedEntryRef = useRef(false);
 
   // HAAT: ustawienie data-h1-tier / data-desc-tier na html (CSS w hero-section.css)
   useEffect(() => {
@@ -37,15 +40,20 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
 
   // Premium gradient (oklch) — włączony gdy przeglądarka wspiera oklch
   useEffect(() => {
-    if (typeof CSS !== "undefined" && CSS.supports?.("color", "oklch(0 0 0)")) {
-      document.documentElement.classList.add("fx-premium");
-    }
+    if (typeof CSS === "undefined" || !CSS.supports) return;
+    const oklch = CSS.supports("color", "oklch(0.6 0.3 30)");
+    const conic = CSS.supports("background-image", "conic-gradient(from 0deg, red, blue)");
+    const mask =
+      CSS.supports("mask-image", "radial-gradient(circle, #000 0%, transparent 70%)") ||
+      CSS.supports("-webkit-mask-image", "radial-gradient(circle, #000 0%, transparent 70%)");
+    const supportsPremium = oklch && conic && mask;
+    document.documentElement.classList.toggle("fx-premium", supportsPremium);
   }, []);
 
   // Animacja startowa — 1:1 oryginał (playEntrySequence → 50ms → startGradient): ukrycie, willChange, reflow, double rAF, .animate
   useEffect(() => {
-    if (hasPlayedEntryRef.current) return;
-    hasPlayedEntryRef.current = true;
+    if (hasPlayedHeroEntrySequence) return;
+    hasPlayedHeroEntrySequence = true;
 
     const el = containerRef.current;
     if (!el) return;

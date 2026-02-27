@@ -1,0 +1,26 @@
+---
+description: High-fidelity migrations with plan/implement/verify flow
+alwaysApply: true
+---
+
+# High-Fidelity Migration Rules
+
+## Process (mandatory)
+- Work in two phases: **Plan** then **Implementation**.
+- Before edits, produce a short checklist (max 10-12 points).
+- After edits, verify checklist and report pass/fail per item.
+
+## No-shortcuts policy
+- Preserve UI/behavior 1:1 unless user asks otherwise.
+- Use the smallest possible diff; avoid unrelated refactors.
+- No placeholders like "..." or "rest unchanged".
+- If required source context is missing/truncated, stop and ask for exact files/snippets.
+
+## Execution quality gate
+- After substantive edits, run verification commands (at minimum build/typecheck; add lint/tests when relevant).
+- If verification fails, fix and rerun until green or clearly report blockers.
+- Always list changed files and the reason for each change.
+
+## Migration focus
+- Migrate one section/concern at a time, not the whole app in one step.
+- Keep behavior-critical timing/animation logic faithful to source.
