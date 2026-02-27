@@ -1,7 +1,7 @@
 #blok-4-5-wave-wrap {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: 20;
   pointer-events: none;
   overflow: hidden;
   background: transparent;
@@ -311,7 +311,7 @@
   --text-color: #141414;
   --highlight-color: #141414;
   position: relative;
-  z-index: 1;
+  z-index: 21;
   background: transparent;
   color: var(--text-color);
 }

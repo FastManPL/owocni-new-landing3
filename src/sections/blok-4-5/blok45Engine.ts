@@ -215,11 +215,6 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
       trigger: triggerElement,
       start: "bottom 100%",
       end: "bottom " + triggerPercent + "%",
-      onUpdate: (self) => {
-        gsap.set(waveWrap, { autoAlpha: 1 });
-        currentTime = maxTime * self.progress;
-        render(currentTime);
-      },
       onEnter: () => playOpen(),
       onLeaveBack: () => {
         currentTime = 0;
@@ -1022,7 +1017,7 @@ export function runBlok45(container: HTMLElement, waveWrap: HTMLElement): Blok45
         s.baseOffsetLeft +
         s.finalX +
         (frameCache.charOffsetWidths[idx] || chars[idx].offsetWidth) / 2;
-      const yOff = bubbleTypes[key] === "thought" ? -55 : -25;
+      const yOff = bubbleTypes[key] === "thought" ? -38 : -12;
       const y = frameCache.containerTop + frameCache.charOffsetTop + s.finalY + yOff;
       const visScale = bubble.classList.contains("visible") ? "scale(1) translateY(0)" : "scale(0.8) translateY(5px)";
       bubble.style.transform = "translate3d(" + x + "px, " + y + "px, 0) translateX(-50%) " + visScale;

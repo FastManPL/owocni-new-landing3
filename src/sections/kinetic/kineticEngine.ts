@@ -135,24 +135,6 @@ export function runKinetic(container: HTMLElement): KineticHandle {
         if (!freezeFinal && self.progress >= FREEZE_ON) freezeFinal = true;
         else if (freezeFinal && self.progress <= FREEZE_OFF) freezeFinal = false;
       },
-      snap: {
-        snapTo: (value, self) => {
-          const fallbackProgress = typeof value === "number" ? value : 0;
-          if (!self) return fallbackProgress;
-          // P2.3: Snap-Lock on touch resize.
-          if (mobileResizeLock) return self.progress;
-          const p = Math.max(self.progress, fallbackProgress);
-          // End lock: once user reaches the final zone, prevent fallback to earlier snaps.
-          if (p >= FINAL_SNAP - FINAL_SNAP_LOCK_EPS) return FINAL_SNAP;
-          // Keep progress free-flowing through bridge/Gemius corridor.
-          return p;
-        },
-        directional: true,
-        inertia: false,
-        duration: { min: 0.3, max: 2.0 },
-        delay: 0.1,
-        ease: "power2.out",
-      },
       // P2.2: no fastScrollEnd in macro pin+snap sections.
     },
   });
