@@ -10,10 +10,12 @@
 @property --hero-L2 { syntax: "<number>"; inherits: false; initial-value: 0.60; } /* Jasność wewnętrzna (środek) */
 @property --hero-C2 { syntax: "<number>"; inherits: false; initial-value: 0.30; } /* Nasycenie wewnętrzne */
 
-@property --hero-opc { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
-@property --hero-gradient-h { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
-@property --hero-gradient-w { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
-@property --hero-gradient-inner-opacity { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+/* NOTE: 0.0001% zamiast 0% — minifier w buildzie potrafi zredukować 0% -> 0,
+   co psuje @property z syntax "<percentage>" i rozwala płynną interpolację. */
+@property --hero-opc { syntax: "<percentage>"; inherits: false; initial-value: 0.0001%; }
+@property --hero-gradient-h { syntax: "<percentage>"; inherits: false; initial-value: 0.0001%; }
+@property --hero-gradient-w { syntax: "<percentage>"; inherits: false; initial-value: 0.0001%; }
+@property --hero-gradient-inner-opacity { syntax: "<percentage>"; inherits: false; initial-value: 0.0001%; }
 @property --hero-gradient-middle-opacity { syntax: "<percentage>"; inherits: false; initial-value: 100%; }
 @property --hero-gradient-outer-opacity { syntax: "<percentage>"; inherits: false; initial-value: 100%; }
 @property --hero-radial-center { syntax: "<percentage>"; inherits: false; initial-value: 35%; }

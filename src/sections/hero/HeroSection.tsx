@@ -92,7 +92,7 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
         raf2 = requestAnimationFrame(() => {
           if (gradient) {
             gradient.style.transition = "";
-            gradient.style.visibility = "";
+            gradient.style.visibility = "visible";
             gradient.style.opacity = "";
             gradient.classList.add("animate");
           }
