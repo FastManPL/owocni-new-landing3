@@ -261,19 +261,19 @@
     pointer-events: none;
 }
 
-/* Start efektu ze środka sekcji (wizualnie jak referencja): mały punkt -> ekspansja na boki */
+/* 1:1 oryginał — top/left 0, origin top left (jak w hero-phase3-standardize) */
 #hero-section .startup-gradient {
     display: none;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     position: absolute;
-    top: 25%;
-    left: 25%;
+    top: 0;
+    left: 0;
     width: 50%;
     height: 50%;
     transform: scale(2);
-    transform-origin: center center;
+    transform-origin: top left;
 }
 
 /* Noise dither — rozbija gradient banding */
@@ -391,17 +391,16 @@
         display: block !important;
         --hero-hue1: 47;
         --hero-hue2: 260;
-        /* Start z punktu centralnego (bez klatki „na obrzeżach”) */
+        /* Wartości startowe dla Wariantu 102 — 1:1 oryginał */
         --hero-L1: 0.75; --hero-C1: 0.35;
         --hero-L2: 0.60; --hero-C2: 0.30;
-        --hero-opc: 30%;
-        --hero-gradient-h: 0%;
-        --hero-gradient-w: 0%;
+        --hero-opc: 100%;
+        --hero-gradient-h: 150%;
+        --hero-gradient-w: 100%;
         --hero-gradient-inner-opacity: 0%;
-        --hero-gradient-middle-opacity: 0%;
-        --hero-gradient-outer-opacity: 0%;
-        --hero-radial-center: 30%;
-        --hero-conic-rotate: -100deg;
+        --hero-gradient-middle-opacity: 100%;
+        --hero-gradient-outer-opacity: 100%;
+        --hero-radial-center: 35%;
         
         background-blend-mode: soft-light;
         
@@ -622,10 +621,10 @@
 /* WHITE BANNER (visual card at bottom) */
 /* white-banner USUNIĘTY — sekcja fullscreen, biały kontener przeniesiony do osobnej sekcji */
 
-/* CONTENT LAYER — z-index: 10 = ponad ::after (1) i tłem (0), jak w referencji */
+/* CONTENT LAYER */
 #hero-section .content-layer {
     position: relative;
-    z-index: 10;
+    /* z-index: removed — no stacking context, allows z-index layering between trail/laury/blob/text */
     width: 100%;
     min-height: 100vh;
     min-height: 100svh;
