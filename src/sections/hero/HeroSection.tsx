@@ -21,6 +21,21 @@ const LOGO_SVG = (
   </svg>
 );
 
+function renderHeadlineWithStrongCity(headline: string) {
+  const cityRegex = /(Warszawie|Warszawa)/i;
+  const match = headline.match(cityRegex);
+  if (!match || match.index == null) return headline;
+  const start = match.index;
+  const end = start + match[0].length;
+  return (
+    <>
+      {headline.slice(0, start)}
+      <strong>{headline.slice(start, end)}</strong>
+      {headline.slice(end)}
+    </>
+  );
+}
+
 // Dev StrictMode (mount->unmount->mount) może podwójnie odpalić sekwencję wejścia.
 // W oryginale HTML choreografia uruchamia się raz na load.
 let hasPlayedHeroEntrySequence = false;
@@ -41,13 +56,14 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
   // Premium gradient (oklch) — włączony gdy przeglądarka wspiera oklch
   useEffect(() => {
     if (typeof CSS === "undefined" || !CSS.supports) return;
+    document.documentElement.classList.remove("fx-premium", "fx-downfall");
     const oklch = CSS.supports("color", "oklch(0.6 0.3 30)");
     const conic = CSS.supports("background-image", "conic-gradient(from 0deg, red, blue)");
     const mask =
       CSS.supports("mask-image", "radial-gradient(circle, #000 0%, transparent 70%)") ||
       CSS.supports("-webkit-mask-image", "radial-gradient(circle, #000 0%, transparent 70%)");
     const supportsPremium = oklch && conic && mask;
-    document.documentElement.classList.toggle("fx-premium", supportsPremium);
+    document.documentElement.classList.add(supportsPremium ? "fx-premium" : "fx-downfall");
   }, []);
 
   // Animacja startowa — 1:1 oryginał (playEntrySequence → 50ms → startGradient): ukrycie, willChange, reflow, double rAF, .animate
@@ -125,7 +141,7 @@ export function HeroSection({ headline, sub, tier }: HeroSectionProps) {
           <div className="hero-content">
             <div className="blob-mask" />
             <div className="hero-title-wrapper">
-              <h1 className="hero-title">{headline}</h1>
+              <h1 className="hero-title">{renderHeadlineWithStrongCity(headline)}</h1>
               <div className="lottie-laur-container lottie-laur-left" id="hero-lottieLaurLeft" />
               <div className="lottie-laur-container lottie-laur-right" id="hero-lottieLaurRight" />
             </div>

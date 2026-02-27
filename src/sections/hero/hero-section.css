@@ -313,11 +313,11 @@
         --frm-trans-timing: cubic-bezier(0.16, 1, 0.3, 1);
     }
     
-    #hero-section .startup-gradient {
+    .fx-downfall #hero-section .startup-gradient {
         display: none !important;
     }
     
-    #hero-section .burst-container {
+    .fx-downfall #hero-section .burst-container {
         display: block;
     }
     
